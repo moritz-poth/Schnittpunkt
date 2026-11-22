@@ -1,1 +1,11 @@
-{ "type": "module", "private": true, "scripts": { "test": "node --test test/*.test.mjs" } }
+{
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "import": "node tools/import-takeout.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

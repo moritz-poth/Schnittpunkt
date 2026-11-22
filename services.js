@@ -1,4 +1,4 @@
-// All network access: geocoding (Nominatim), street routing (OSRM), public transport (Transitous), GitHub.
+// All network access: geocoding (Nominatim), street routing (OSRM), public transport (Transitous).
 import { config } from './config.js';
 
 const OSRM = {
@@ -74,55 +74,7 @@ export async function runLimited(tasks, limit, onDone) {
 }
 
 export async function loadRooms() {
-  const res = await fetch(config.repo.path, { cache: 'no-cache' });
+  const res = await fetch('rooms.json', { cache: 'no-cache' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
-}
-
-function github(token) {
-  const { owner, name, path } = config.repo;
-  return {
-    url: `https://api.github.com/repos/${owner}/${name}/contents/${path}`,
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-  };
-}
-
-function decodeBase64Json(b64) {
-  const binary = atob(b64.replace(/\s/g, ''));
-  return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
-}
-
-// rooms.json as it is in the repo right now, plus its sha. null = file does not exist yet.
-async function currentFile(token) {
-  const { url, headers } = github(token);
-  const res = await fetch(`${url}?ref=${config.repo.branch}`, { headers, cache: 'no-store' });
-  if (res.status === 401 || res.status === 403) throw new Error('auth');
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  return { sha: data.sha, rooms: decodeBase64Json(data.content) };
-}
-
-export async function loadRoomsFromGitHub(token) {
-  return (await currentFile(token))?.rooms ?? [];
-}
-
-// Writes rooms.json into the repo through the GitHub contents API. GitHub Pages redeploys by itself.
-// `baseJson` is the list the edits started from; if the repo holds something else, nothing is written.
-export async function saveRoomsToGitHub(rooms, baseJson, token) {
-  const { url, headers } = github(token);
-  const current = await currentFile(token);
-  if (JSON.stringify(current?.rooms ?? []) !== baseJson) throw new Error('conflict');
-  const branch = config.repo.branch;
-  const sha = current?.sha;
-  const bytes = new TextEncoder().encode(JSON.stringify(rooms, null, 2) + '\n');
-  let binary = '';
-  bytes.forEach((b) => { binary += String.fromCharCode(b); });
-  const res = await fetch(url, {
-    method: 'PUT', headers,
-    body: JSON.stringify({ message: 'Update rooms', content: btoa(binary), branch, sha }),
-  });
-  if (res.status === 401 || res.status === 403) throw new Error('auth');
-  if (res.status === 409) throw new Error('conflict');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

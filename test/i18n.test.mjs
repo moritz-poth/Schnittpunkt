@@ -9,11 +9,9 @@ const app = readFileSync(new URL('app.js', root), 'utf8');
 const html = readFileSync(new URL('index.html', root), 'utf8');
 const used = new Set([
   ...[...app.matchAll(/\bt\('(\w+)'/g)].map((m) => m[1]),
-  ...[...app.matchAll(/key: '(\w+)'/g)].map((m) => m[1]),
-  ...[...app.matchAll(/'(\w+)' : '(\w+)' : '(\w+)'/g)].flatMap((m) => m.slice(1)),
   ...[...html.matchAll(/data-i18n="(\w+)"/g)].map((m) => m[1]),
   ...MODES.map((m) => `mode_${m}`),
-  'sort_fair', 'sort_total', 'sortHint_fair', 'sortHint_total', 'tab_plan', 'tab_rooms',
+  'sort_fair', 'sort_total', 'sortHint_fair', 'sortHint_total',
 ]);
 
 test('every language has exactly the English keys', () => {

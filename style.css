@@ -28,7 +28,6 @@ a { color: var(--accent); }
 .topbar { display: flex; align-items: center; gap: 24px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--sidebar); flex-wrap: wrap; }
 h1 { font: 300 20px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.25em; margin: 0; }
 .tagline { margin: 2px 0 0; color: var(--faint); font-size: 11px; }
-#tabs { display: flex; gap: 4px; }
 .settings { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
 .layout { flex: 1; display: grid; grid-template-columns: minmax(340px, 460px) 1fr; min-height: 0; }
@@ -69,7 +68,6 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 .primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); width: 100%; min-height: 36px; margin-top: 16px; justify-content: center; font-weight: 700; }
 .primary:hover:not(:disabled) { background: var(--primary); opacity: 0.88; }
 .primary.inline { width: auto; margin-top: 0; min-height: 28px; }
-.danger { color: var(--error); }
 .icon { padding: 0 8px; font-size: 16px; line-height: 1; }
 .add { margin-top: 4px; }
 
@@ -107,14 +105,10 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 8px 1px 2px; border: 1px solid var(--card-line); border-radius: 12px; }
 .chip.longest { border-color: var(--warn); border-style: dashed; }
-.tag { color: var(--warn); font-size: 12px; }
-.form input { margin-bottom: 2px; }
-.save { margin-top: 24px; }
 details summary { cursor: pointer; }
 
 /* Map markers */
 .m-room { background: var(--accent); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #0006; }
-.m-room.unsure { background: #d29922; border-style: dashed; }
 .m-room.out { opacity: 0.35; }
 .m-room.ranked { background: #6a7076; }
 .m-room.top { display: grid !important; place-items: center; color: #fff; font-weight: 700; background: #1a7f37; font-size: 13px; }
@@ -130,5 +124,3 @@ details summary { cursor: pointer; }
 .switch:hover:not(:disabled) { background: var(--line); }
 .switch[aria-checked=true]:hover { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .switch .knob { transition: none; } }
-label.button:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-label.button.disabled { color: var(--faint); cursor: default; opacity: 0.7; background: transparent; }

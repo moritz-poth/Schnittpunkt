@@ -12,15 +12,18 @@ If you use Schnittpunkt and like it, I would be glad if you [bought me a coffee]
 
 ## Rooms
 
-The room list is `rooms.json` in this repository. Edit it under **Rooms** on the page:
+The room list is `rooms.json` in this repository. It is built from a Google Maps list exported with Google Takeout (only "Saved"):
 
-- Add a room by address or by pasting a Google Maps link.
-- Import a Google Maps list: go to [takeout.google.com](https://takeout.google.com), click **Deselect all**, tick only **Saved** and create the export. Under `Takeout/Saved` there is one CSV per list. Rooms placed by name search are marked ⚠. Check them on the map, drag the marker if needed, and confirm.
-- **Save to GitHub** writes `rooms.json` into the repository. GitHub Pages shows the change after about a minute. For this you need a [fine-grained token](https://github.com/settings/personal-access-tokens/new) for this repository only, with **Contents: Read and write**. The token stays in that browser.
+```sh
+npm install                                   # once
+npm run import -- "<path>/Takeout/Saved/<list>.csv"
+```
+
+The script opens each saved place in Google Chrome and reads its position and address. Rooms already in `rooms.json` keep their id, address and position, so corrections made by hand stay. Check the printed list, then commit `rooms.json`.
 
 ## Another city
 
-Change `city` in `config.js` (map centre, search area, country) and the `repo` entry if you use a fork.
+Change `city` in `config.js` (map centre, search area, country) and replace `rooms.json`.
 
 ## Development
 
@@ -28,7 +31,7 @@ Plain HTML and JavaScript modules, no build step. Leaflet and JetBrains Mono are
 
 ```sh
 python3 -m http.server 8000   # then open http://localhost:8000
-node --test test/*.test.mjs   # logic and translations
+npm test                      # logic, translations, rooms.json
 ```
 
 ## Licence

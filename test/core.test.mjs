@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords, parseCsv, takeoutRows, validRooms } from '../core.js';
+import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords } from '../core.js';
 
 test('distance Alexanderplatz – Brandenburger Tor is about 2.6 km', () => {
   const d = distanceKm({ lat: 52.5219, lon: 13.4132 }, { lat: 52.5163, lon: 13.3777 });
@@ -37,17 +37,13 @@ test('coordinates from Google Maps links and plain text', () => {
   assert.equal(parseCoords('https://www.google.com/maps/place/X/data=!4m2!3m1!1s0x47a8:0x1'), null);
 });
 
-test('CSV with quotes, commas and line breaks', () => {
-  assert.deepEqual(parseCsv('a,b\r\n"x, y","say ""hi""\nthere"\n'), [['a', 'b'], ['x, y', 'say "hi"\nthere']]);
-});
-
-test('Takeout rows by header name', () => {
-  const csv = '﻿Title,Note,URL,Comment\nRoom One,2nd floor,"https://www.google.com/maps/search/52.5,13.4",\n,,,\n';
-  assert.deepEqual(takeoutRows(csv), [{ name: 'Room One', note: '2nd floor', url: 'https://www.google.com/maps/search/52.5,13.4' }]);
-});
-
-test('room list validation', () => {
-  assert.ok(validRooms([{ id: 'a', name: 'X', lat: 1, lon: 2 }]));
-  assert.ok(!validRooms([{ id: 'a', name: ' ', lat: 1, lon: 2 }]));
-  assert.ok(!validRooms([{ id: 'a', name: 'X', lat: null, lon: 2 }]));
+test('rooms.json: unique ids, name, address and a position in Berlin', async () => {
+  const { readFileSync } = await import('node:fs');
+  const rooms = JSON.parse(readFileSync(new URL('../rooms.json', import.meta.url), 'utf8'));
+  assert.ok(rooms.length > 0);
+  assert.equal(new Set(rooms.map((r) => r.id)).size, rooms.length);
+  for (const r of rooms) {
+    assert.ok(r.name && r.address, r.id);
+    assert.ok(r.lat > 52.3 && r.lat < 52.7 && r.lon > 13.0 && r.lon < 13.8, r.id);
+  }
 });

@@ -1,26 +1,20 @@
 import { config } from './config.js';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, takeoutRows, newId, validRooms } from './core.js';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, newId } from './core.js';
 import * as api from './services.js';
 import { STRINGS, LANGS } from './i18n.js';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
-const TOKEN_KEY = 'schnittpunkt.githubToken';
 
 const state = {
   lang: STRINGS[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'en',
   dark: localStorage.getItem('theme') !== 'light',
-  view: 'plan',
   rooms: [],
-  savedRooms: '[]', // JSON of the list as it is in the repo, for "unsaved changes"
   roomsError: false,
   people: [],
   arrive: defaultArrival(),
   criterion: 'fair',
   results: null,
   progress: null, // { done, total, ctrl }
-  form: null, // room being added or edited
-  importState: null, // { done, total, ctrl, missing: [] }
-  message: null, // { kind: 'ok' | 'error', key }
 };
 
 // ---------- helpers ----------
@@ -64,24 +58,12 @@ function defaultArrival() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T10:00`;
 }
 
-function dirty() {
-  return JSON.stringify(state.rooms) !== state.savedRooms;
-}
-
 // Inputs changed: old results no longer apply, a running calculation is stopped.
 function invalidate() {
   state.results = null;
   state.progress?.ctrl.abort();
 }
 
-function importRunning() {
-  return !!state.importState && !state.importState.finished;
-}
-
-// Room editing is blocked when the list could not be loaded: saving would overwrite the repo with a partial list.
-function editLocked() {
-  return state.roomsError || importRunning();
-}
 
 function newPerson() {
   return { id: newId(), name: '', query: '', lat: null, lon: null, address: '', mode: 'transit', results: null, searching: false };
@@ -104,39 +86,23 @@ function drawMap() {
   peopleLayer.clearLayers();
   markers.clear();
   const rank = new Map();
-  if (state.view === 'plan' && state.results) {
-    state.results.rows.forEach((row, i) => rank.set(row.room.id, i + 1));
-  }
-  const editing = state.view === 'rooms';
+  state.results?.rows.forEach((row, i) => rank.set(row.room.id, i + 1));
   for (const room of state.rooms) {
     const r = rank.get(room.id);
-    const cls = r ? (r <= 3 ? 'm-room top' : 'm-room ranked') : (state.results && !editing ? 'm-room out' : 'm-room');
-    const icon = L.divIcon({ className: cls + (room.unsure ? ' unsure' : ''), html: r && r <= 3 ? String(r) : '', iconSize: r && r <= 3 ? [26, 26] : [14, 14] });
-    const marker = L.marker([room.lat, room.lon], { icon, draggable: editing, keyboard: true, title: room.name, alt: room.name });
-    marker.bindTooltip(el('span', { text: room.name }));
-    if (editing) {
-      marker.on('dragend', () => {
-        const p = marker.getLatLng();
-        Object.assign(room, { lat: round6(p.lat), lon: round6(p.lng), unsure: false });
-        render();
-      });
-    }
+    const cls = r ? (r <= 3 ? 'm-room top' : 'm-room ranked') : (state.results ? 'm-room out' : 'm-room');
+    const icon = L.divIcon({ className: cls, html: r && r <= 3 ? String(r) : '', iconSize: r && r <= 3 ? [26, 26] : [14, 14] });
+    const marker = L.marker([room.lat, room.lon], { icon, keyboard: true, title: room.name, alt: room.name });
+    marker.bindTooltip(el('span', {}, el('strong', { text: room.name }), el('br'), room.address || ''));
     marker.addTo(roomLayer);
     markers.set(room.id, marker);
   }
-  if (!editing) {
-    state.people.forEach((p, i) => {
-      if (p.lat == null) return;
-      const icon = L.divIcon({ className: 'm-person', html: letter(i), iconSize: [24, 24] });
-      L.marker([p.lat, p.lon], { icon, title: p.name || letter(i), alt: p.name || letter(i) })
-        .bindTooltip(el('span', { text: `${letter(i)} ${p.name}`.trim() }))
-        .addTo(peopleLayer);
-    });
-  }
-}
-
-function round6(n) {
-  return Math.round(n * 1e6) / 1e6;
+  state.people.forEach((p, i) => {
+    if (p.lat == null) return;
+    const icon = L.divIcon({ className: 'm-person', html: letter(i), iconSize: [24, 24] });
+    L.marker([p.lat, p.lon], { icon, title: p.name || letter(i), alt: p.name || letter(i) })
+      .bindTooltip(el('span', { text: `${letter(i)} ${p.name}`.trim() }))
+      .addTo(peopleLayer);
+  });
 }
 
 function focusRoom(room) {
@@ -266,7 +232,8 @@ function resultsView() {
     el('ol', { class: 'ranking' }, rows.map((row, i) => el('li', { class: 'card result' + (i === 0 && row.score.complete ? ' best' : '') },
       el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(row.room) },
         el('span', { class: 'rank', text: String(i + 1) }),
-        el('span', { class: 'grow' }, el('strong', { text: row.room.name }), el('br'), el('span', { class: 'muted', text: row.room.address || '' }))),
+        el('span', { class: 'grow' }, el('strong', { text: row.room.name }), el('br'), el('span', { class: 'muted', text: row.room.address || '' }),
+          row.room.note ? el('span', { class: 'muted note' }, el('br'), row.room.note) : null)),
       el('p', { class: 'score' }, row.score.complete
         ? t('scoreLine', { max: fmtMin(row.score.max), total: fmtMin(row.score.total) })
         : t('noRoute')),
@@ -304,171 +271,6 @@ function planView() {
     state.results ? resultsView() : null);
 }
 
-// ---------- rooms view ----------
-
-function startForm(room) {
-  state.form = room
-    ? { id: room.id, name: room.name, note: room.note || '', query: room.address || '', address: room.address || '', lat: room.lat, lon: room.lon, results: null, searching: false }
-    : { id: null, name: '', note: '', query: '', address: '', lat: null, lon: null, results: null, searching: false };
-  state.message = null;
-  render();
-  document.getElementById('room-name')?.focus();
-}
-
-function saveForm() {
-  const f = state.form;
-  if (!f.name.trim() || f.lat == null) { state.message = { kind: 'error', key: 'formIncomplete' }; render(); return; }
-  const data = { name: f.name.trim(), address: f.address.trim(), note: f.note.trim(), lat: f.lat, lon: f.lon };
-  const existing = state.rooms.find((r) => r.id === f.id);
-  if (existing) { Object.assign(existing, data); delete existing.unsure; }
-  else state.rooms.push({ id: newId(), ...data });
-  state.form = null;
-  state.message = null;
-  render();
-}
-
-function roomForm() {
-  const f = state.form;
-  const pick = (r) => {
-    Object.assign(f, { lat: round6(r.lat), lon: round6(r.lon), address: r.label, query: r.label, results: null });
-    render();
-    map.flyTo([f.lat, f.lon], 15, { duration: 0.6 });
-  };
-  return el('div', { class: 'card form' },
-    el('h3', { text: f.id ? t('editRoom') : t('addRoom') }),
-    el('label', { for: 'room-name', text: t('roomName') }),
-    el('input', { id: 'room-name', type: 'text', value: f.name, oninput: (e) => { f.name = e.target.value; } }),
-    el('label', { for: 'room-address', text: t('roomAddress') }),
-    el('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); addressSearch(f, pick); } },
-      el('input', { id: 'room-address', class: 'grow', type: 'text', value: f.query, placeholder: t('roomAddressPlaceholder'), oninput: (e) => { f.query = e.target.value; f.address = e.target.value; } }),
-      el('button', { type: 'submit', text: t('search') })),
-    resultList(f, pick),
-    f.lat != null && !f.results ? el('p', { class: 'picked' }, el('span', { class: 'ok', 'aria-hidden': 'true', text: '✓ ' }), `${f.lat.toFixed(5)}, ${f.lon.toFixed(5)}`) : null,
-    el('label', { for: 'room-note', text: t('roomNote') }),
-    el('input', { id: 'room-note', type: 'text', value: f.note, oninput: (e) => { f.note = e.target.value; } }),
-    el('div', { class: 'row end' },
-      el('button', { type: 'button', text: t('cancel'), onclick: () => { state.form = null; state.message = null; render(); } }),
-      el('button', { type: 'button', class: 'primary inline', text: t('apply'), onclick: saveForm })));
-}
-
-async function importCsv(file) {
-  if (editLocked()) return;
-  const rows = takeoutRows(await file.text());
-  const known = new Set(state.rooms.map((r) => r.name.toLowerCase()));
-  const todo = rows.filter((r) => !known.has(r.name.toLowerCase()));
-  const ctrl = new AbortController();
-  state.importState = { done: 0, total: todo.length, ctrl, missing: [], skipped: rows.length - todo.length, finished: false };
-  render();
-  for (const row of todo) {
-    if (ctrl.signal.aborted) break;
-    const coords = parseCoords(row.url);
-    let room = null;
-    if (coords) room = { id: newId(), name: row.name, address: '', note: row.note, lat: coords.lat, lon: coords.lon };
-    else {
-      try {
-        const [hit] = await api.geocode(row.name, state.lang);
-        if (hit) room = { id: newId(), name: row.name, address: hit.label, note: row.note, lat: round6(hit.lat), lon: round6(hit.lon), unsure: true };
-      } catch { /* counted as missing below */ }
-    }
-    if (ctrl.signal.aborted) break;
-    if (room) state.rooms.push(room);
-    else state.importState.missing.push(row);
-    state.importState.done++;
-    render();
-  }
-  state.importState.finished = true;
-  render();
-}
-
-// The editor reads the list straight from GitHub: the Pages copy can lag a few minutes behind a save.
-async function refreshRoomsFromGitHub() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token || dirty() || importRunning()) return;
-  try {
-    const rooms = await api.loadRoomsFromGitHub(token);
-    if (dirty()) return;
-    state.rooms = rooms;
-    state.savedRooms = JSON.stringify(rooms);
-    state.roomsError = false;
-    render();
-  } catch { /* keep the Pages copy; saving still checks for conflicts */ }
-}
-
-async function saveToGitHub() {
-  if (editLocked()) return;
-  const token = (state.tokenInput || localStorage.getItem(TOKEN_KEY) || '').trim();
-  if (!token) { state.message = { kind: 'error', key: 'tokenMissing' }; render(); return; }
-  if (!validRooms(state.rooms)) { state.message = { kind: 'error', key: 'roomsInvalid' }; render(); return; }
-  state.message = { kind: 'busy', key: 'saving' };
-  render();
-  try {
-    await api.saveRoomsToGitHub(state.rooms, state.savedRooms, token);
-    localStorage.setItem(TOKEN_KEY, token);
-    state.tokenInput = '';
-    state.savedRooms = JSON.stringify(state.rooms);
-    state.message = { kind: 'ok', key: 'saved' };
-  } catch (e) {
-    state.message = { kind: 'error', key: e.message === 'auth' ? 'tokenInvalid' : e.message === 'conflict' ? 'saveConflict' : 'saveFailed' };
-  }
-  render();
-}
-
-function roomsView() {
-  const imp = state.importState;
-  const hasToken = !!localStorage.getItem(TOKEN_KEY);
-  const msg = state.message;
-  return el('div', {},
-    el('p', { class: 'intro', text: t('roomsIntro') }),
-    state.roomsError ? el('p', { class: 'error', role: 'alert', text: t('roomsLoadFailed') }) : null,
-    el('div', { class: 'row' },
-      el('button', { type: 'button', text: `+ ${t('addRoom')}`, onclick: () => startForm(null), disabled: !!state.form || editLocked() }),
-      el('label', { class: 'button' + (editLocked() ? ' disabled' : '') }, t('importCsv'),
-        el('input', { type: 'file', disabled: editLocked(), accept: '.csv,text/csv', class: 'sr', onchange: (e) => { if (e.target.files[0]) importCsv(e.target.files[0]); e.target.value = ''; } }))),
-    el('details', { class: 'hint' }, el('summary', { text: t('importHowTitle') }), el('p', { text: t('importHow') })),
-    imp ? el('div', { class: 'card', role: 'status' },
-      imp.finished
-        ? el('p', { text: t('importDone', { n: imp.done - imp.missing.length, skipped: imp.skipped }) })
-        : el('div', {},
-          el('progress', { max: imp.total, value: imp.done }),
-          el('div', { class: 'row' },
-            el('span', { class: 'grow', text: t('importing', { done: imp.done, total: imp.total }) }),
-            el('button', { type: 'button', text: t('cancel'), onclick: () => imp.ctrl.abort() }))),
-      imp.missing.length ? el('div', {},
-        el('p', { class: 'warn', text: t('importMissing') }),
-        el('ul', { class: 'plain' }, imp.missing.map((row) => el('li', { class: 'row' },
-          el('span', { class: 'grow', text: row.name }),
-          el('button', { type: 'button', text: t('addManually'), onclick: () => { imp.missing = imp.missing.filter((m) => m !== row); startForm(null); state.form.name = row.name; state.form.note = row.note; render(); } }))))) : null,
-      imp.finished ? el('button', { type: 'button', text: t('close'), onclick: () => { state.importState = null; render(); } }) : null) : null,
-    state.form ? roomForm() : null,
-    msg && msg.kind === 'error' && state.form ? el('p', { class: 'error', role: 'alert', text: t(msg.key) }) : null,
-    el('h2', { text: t('roomCount', { n: state.rooms.length }) }),
-    state.rooms.some((r) => r.unsure) ? el('p', { class: 'warn', text: t('unsureHint') }) : null,
-    el('p', { class: 'hint', text: t('dragHint') }),
-    el('ul', { class: 'plain rooms' }, [...state.rooms].sort((a, b) => a.name.localeCompare(b.name)).map((room) => el('li', { class: 'card room' },
-      el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(room) },
-        el('span', { class: 'grow' },
-          el('strong', { text: room.name }),
-          room.unsure ? el('span', { class: 'tag', text: ` ⚠ ${t('unsure')}` }) : null,
-          el('br'), el('span', { class: 'muted', text: room.address || `${room.lat.toFixed(5)}, ${room.lon.toFixed(5)}` }),
-          room.note ? el('span', { class: 'muted' }, el('br'), room.note) : null)),
-      el('div', { class: 'row end' },
-        room.unsure ? el('button', { type: 'button', text: t('confirmPosition'), onclick: () => { delete room.unsure; render(); } }) : null,
-        el('button', { type: 'button', text: t('edit'), onclick: () => startForm(room) }),
-        el('button', { type: 'button', class: 'danger', text: t('delete'), onclick: () => { if (confirm(t('deleteConfirm', { name: room.name }))) { state.rooms = state.rooms.filter((r) => r !== room); render(); } } }))))),
-    el('section', { class: 'card save', 'aria-labelledby': 'save-title' },
-      el('h3', { id: 'save-title', text: t('saveTitle') }),
-      el('p', { class: dirty() ? 'warn' : 'hint', text: dirty() ? t('unsaved') : t('allSaved') }),
-      hasToken ? null : el('div', {},
-        el('label', { for: 'token', text: t('token') }),
-        el('input', { id: 'token', type: 'password', autocomplete: 'off', spellcheck: 'false', value: state.tokenInput || '', oninput: (e) => { state.tokenInput = e.target.value; } }),
-        el('details', { class: 'hint' }, el('summary', { text: t('tokenHowTitle') }), el('p', { text: t('tokenHow', { repo: `${config.repo.owner}/${config.repo.name}` }) }),
-          el('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener', text: t('tokenLink') }))),
-      el('div', { class: 'row end' },
-        hasToken ? el('button', { type: 'button', text: t('forgetToken'), onclick: () => { localStorage.removeItem(TOKEN_KEY); render(); } }) : null,
-        el('button', { type: 'button', class: 'primary inline', disabled: !dirty() || msg?.kind === 'busy' || editLocked(), text: t('saveToGitHub'), onclick: saveToGitHub })),
-      msg && !state.form ? el('p', { class: msg.kind === 'error' ? 'error' : msg.kind === 'ok' ? 'ok' : 'hint', role: msg.kind === 'error' ? 'alert' : 'status', text: t(msg.key) }) : null));
-}
-
 // ---------- shell ----------
 
 function render() {
@@ -476,12 +278,6 @@ function render() {
   document.documentElement.classList.toggle('dark', state.dark);
   document.title = t('pageTitle');
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
-  const tabs = document.getElementById('tabs');
-  tabs.replaceChildren(...['plan', 'rooms'].map((v) => el('button', {
-    type: 'button', role: 'tab', 'aria-selected': String(state.view === v), class: 'tab' + (state.view === v ? ' on' : ''),
-    onclick: () => { state.view = v; state.message = null; render(); if (v === 'rooms') refreshRoomsFromGitHub(); },
-    text: v === 'rooms' && dirty() ? `${t('tab_rooms')} •` : t(`tab_${v}`),
-  })));
   const lang = document.getElementById('lang');
   lang.replaceChildren(...LANGS.map(([code, name]) => el('option', { value: code, selected: code === state.lang, text: name })));
   lang.setAttribute('aria-label', t('language'));
@@ -494,7 +290,7 @@ function render() {
   const active = document.activeElement;
   const focusId = active?.id;
   const caret = active && 'selectionStart' in active ? [active.selectionStart, active.selectionEnd] : null;
-  panel.replaceChildren(state.view === 'plan' ? planView() : roomsView());
+  panel.replaceChildren(planView());
   const again = focusId && document.getElementById(focusId);
   if (again) {
     again.focus();
@@ -513,13 +309,10 @@ document.getElementById('theme').addEventListener('click', () => {
   localStorage.setItem('theme', state.dark ? 'dark' : 'light');
   render();
 });
-window.addEventListener('beforeunload', (e) => {
-  if (dirty()) e.preventDefault();
-});
 
 state.people.push(newPerson(), newPerson());
 render();
 api.loadRooms()
-  .then((rooms) => { state.rooms = rooms; state.savedRooms = JSON.stringify(rooms); })
+  .then((rooms) => { state.rooms = rooms; })
   .catch(() => { state.roomsError = true; })
   .finally(render);

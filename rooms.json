@@ -1,1 +1,159 @@
-[]
+[
+  {
+    "id": "dark-ways-gmbh",
+    "name": "DARK WAYS Gmbh",
+    "address": "Anklamer Str. 33, 10115 Berlin",
+    "lat": 52.535782,
+    "lon": 13.399946
+  },
+  {
+    "id": "leuschnerdamm-13",
+    "name": "Leuschnerdamm 13",
+    "address": "Leuschnerdamm 13, 10999 Berlin",
+    "lat": 52.504551,
+    "lon": 13.419088,
+    "note": "RotorFilm hat hier Schneideräume"
+  },
+  {
+    "id": "preuss-filmproduktion",
+    "name": "Preuss Filmproduktion",
+    "address": "Belforter Str. 17, 10405 Berlin",
+    "lat": 52.531847,
+    "lon": 13.419051,
+    "note": "Hier gibt es zwei Schneideräume. Kein klassisches Posthaus."
+  },
+  {
+    "id": "wave-line-gmbh",
+    "name": "wave-line GmbH",
+    "address": "Bülowstraße 66, 10783 Berlin",
+    "lat": 52.496511,
+    "lon": 13.367152
+  },
+  {
+    "id": "friederike-anders-urbanfilm",
+    "name": "Friederike Anders urbanfilm",
+    "address": "Urbanstraße 45, 10967 Berlin",
+    "lat": 52.490553,
+    "lon": 13.416907
+  },
+  {
+    "id": "cine-chromatix-kg",
+    "name": "Cine Chromatix KG",
+    "address": "Goethestraße 85, 10623 Berlin",
+    "lat": 52.508616,
+    "lon": 13.324171
+  },
+  {
+    "id": "pharos-the-post-group-media-services-gmb",
+    "name": "PHAROS - The Post Group | Media Services GmbH",
+    "address": "Auguststraße 48, 10119 Berlin",
+    "lat": 52.527966,
+    "lon": 13.401231
+  },
+  {
+    "id": "syrreal-works-gmbh",
+    "name": "Syrreal Works GmbH",
+    "address": "Prenzlauer Allee 13, 10405 Berlin",
+    "lat": 52.530347,
+    "lon": 13.419373
+  },
+  {
+    "id": "schropfer-und-buhler-postproduktion-gmbh",
+    "name": "Schröpfer und Bühler Postproduktion GmbH",
+    "address": "Potsdamer Str. 79, 10785 Berlin",
+    "lat": 52.50238,
+    "lon": 13.365401
+  },
+  {
+    "id": "studio-hamburg-postproduction-gmbh",
+    "name": "Studio Hamburg Postproduction GmbH",
+    "address": "Nestorstraße 8-9, 10709 Berlin",
+    "lat": 52.497676,
+    "lon": 13.299194
+  },
+  {
+    "id": "sonnenstudio-sound-for-motion-picture",
+    "name": "Sonnenstudio - Sound For Motion Picture",
+    "address": "Sonnenallee 65, 12045 Berlin",
+    "lat": 52.48476,
+    "lon": 13.434899
+  },
+  {
+    "id": "ko-pictures-berlin-gmbh",
+    "name": "ko-pictures Berlin GmbH",
+    "address": "Kreuzstraße 12a, 13187 Berlin",
+    "lat": 52.567821,
+    "lon": 13.396995
+  },
+  {
+    "id": "achtfeld-gmbh",
+    "name": "Achtfeld GmbH",
+    "address": "Pappelallee 65, 10437 Berlin",
+    "lat": 52.545464,
+    "lon": 13.416745
+  },
+  {
+    "id": "act-headquarter-media-gmbh",
+    "name": "Act HeadQuarter Media GmbH",
+    "address": "Danckelmannstraße 9c, 14059 Berlin",
+    "lat": 52.516031,
+    "lon": 13.28996
+  },
+  {
+    "id": "cinepostproduction-gmbh",
+    "name": "CinePostproduction GmbH",
+    "address": "Ringbahnstraße 16/18/20, 12099 Berlin",
+    "lat": 52.46711,
+    "lon": 13.39274
+  },
+  {
+    "id": "cine-plus-mediaservice-gmbh-co-kg",
+    "name": "cine plus Mediaservice GmbH & Co. KG",
+    "address": "Lützowufer 9, 10785 Berlin",
+    "lat": 52.505948,
+    "lon": 13.357397
+  },
+  {
+    "id": "d-facto-vfx",
+    "name": "D-Facto VFX",
+    "address": "Michaelkirchstraße 17-18, 10179 Berlin",
+    "lat": 52.510575,
+    "lon": 13.422595,
+    "note": "Hier gibt es auch Räume zum schneiden, muss man bei D-Facto anfragen."
+  },
+  {
+    "id": "d-facto-motion-gmbh",
+    "name": "D-Facto Motion GmbH",
+    "address": "Gotzkowskystraße 20, 10555 Berlin",
+    "lat": 52.523531,
+    "lon": 13.329019
+  },
+  {
+    "id": "the-post-republic-gmbh",
+    "name": "The Post Republic GmbH",
+    "address": "Schlesische Str. 20, 10997 Berlin",
+    "lat": 52.498549,
+    "lon": 13.446426
+  },
+  {
+    "id": "konterfei-gmbh",
+    "name": "Konterfei GmbH",
+    "address": "Kastanienallee 74, 10435 Berlin",
+    "lat": 52.536131,
+    "lon": 13.40755
+  },
+  {
+    "id": "harrington-media-art-design-gmbh",
+    "name": "HARRINGTON Media Art & Design GmbH",
+    "address": "Lützowstraße 102-104/Vorderhaus, 3. Etage, 10785 Berlin",
+    "lat": 52.501957,
+    "lon": 13.368469
+  },
+  {
+    "id": "concept-av-ohg",
+    "name": "Concept AV oHG",
+    "address": "Gneisenaustraße 45, 10961 Berlin",
+    "lat": 52.489682,
+    "lon": 13.401977
+  }
+]

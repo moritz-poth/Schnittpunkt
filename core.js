@@ -71,52 +71,6 @@ export function parseCoords(text) {
   return null;
 }
 
-// RFC 4180 CSV (quotes, commas and line breaks inside quotes).
-export function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (c === '"') quoted = false;
-      else field += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ',') { row.push(field); field = ''; }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++;
-      row.push(field); rows.push(row); row = []; field = '';
-    } else field += c;
-  }
-  if (field !== '' || row.length) { row.push(field); rows.push(row); }
-  return rows.filter((r) => r.some((f) => f.trim() !== ''));
-}
-
-// Google Takeout "Saved" list → [{ name, note, url }]. Columns are found by header name.
-export function takeoutRows(text) {
-  const [header, ...rows] = parseCsv(text.replace(/^﻿/, ''));
-  if (!header) return [];
-  const col = (re, fallback) => {
-    const i = header.findIndex((h) => re.test(h.trim()));
-    return i >= 0 ? i : fallback;
-  };
-  const name = col(/^(title|titel|titre|t[ií]tulo)$/i, 0);
-  const note = col(/^(note|notiz|notes?|nota)$/i, -1);
-  const url = col(/^url$/i, -1);
-  return rows
-    .map((r) => ({ name: (r[name] || '').trim(), note: note >= 0 ? (r[note] || '').trim() : '', url: url >= 0 ? (r[url] || '').trim() : '' }))
-    .filter((r) => r.name || r.url);
-}
-
 export function newId() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-// Checks a room list before it is written to the repo.
-export function validRooms(rooms) {
-  return Array.isArray(rooms) && rooms.every((r) =>
-    r && typeof r.id === 'string' && typeof r.name === 'string' && r.name.trim() !== ''
-    && Number.isFinite(r.lat) && Number.isFinite(r.lon));
 }

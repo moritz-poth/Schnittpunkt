@@ -1,4 +1,4 @@
-// Everything city- or repo-specific. Another city: change `city`, keep the rest.
+// Everything city-specific. Another city: change these values and rooms.json.
 export const config = {
   city: {
     name: 'Berlin',
@@ -8,6 +8,4 @@ export const config = {
     viewbox: [13.05, 52.7, 13.8, 52.33],
     countrycodes: 'de',
   },
-  // Where the editor saves rooms.json (GitHub contents API).
-  repo: { owner: 'moritz-poth', name: 'Schnittpunkt', branch: 'main', path: 'rooms.json' },
 };
