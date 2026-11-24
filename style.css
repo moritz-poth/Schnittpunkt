@@ -29,6 +29,7 @@ a { color: var(--accent); }
 h1 { font: 300 20px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.25em; margin: 0; }
 .tagline { margin: 2px 0 0; color: var(--faint); font-size: 11px; }
 .settings { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.settings label { margin: 0 -4px 0 0; color: var(--faint); font-size: 12px; }
 
 .layout { flex: 1; display: grid; grid-template-columns: minmax(340px, 460px) 1fr; min-height: 0; }
 /* relative: absolute .sr texts inside would otherwise hang off the page and make it scroll. */

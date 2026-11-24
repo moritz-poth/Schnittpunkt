@@ -4,7 +4,7 @@ export const STRINGS = {
   en: {
     pageTitle: 'Schnittpunkt – the best editing room for everyone',
     tagline: 'The editing room that suits everyone',
-    city: 'City', language: 'Language', darkMode: 'Dark mode',
+    city: 'Choose your city', language: 'Language', darkMode: 'Dark mode',
     intro: 'Enter where everyone starts and how they travel. Schnittpunkt finds the editing room with the best journeys for all.',
     roomsLoadFailed: 'The room list could not be loaded. Reload the page.',
     noRoomsYet: 'There are no editing rooms for this city yet.',
@@ -38,7 +38,7 @@ export const STRINGS = {
   de: {
     pageTitle: 'Schnittpunkt – der beste Schneideraum für alle',
     tagline: 'Der Schneideraum, der für alle passt',
-    city: 'Stadt', language: 'Sprache', darkMode: 'Dunkler Modus',
+    city: 'Wähle deine Stadt', language: 'Sprache', darkMode: 'Dunkler Modus',
     intro: 'Gib ein, wo alle losfahren und womit. Schnittpunkt findet den Schneideraum mit den besten Wegen für alle.',
     roomsLoadFailed: 'Die Raumliste konnte nicht geladen werden. Lade die Seite neu.',
     noRoomsYet: 'Für diese Stadt sind noch keine Schneideräume eingetragen.',
@@ -72,7 +72,7 @@ export const STRINGS = {
   fr: {
     pageTitle: 'Schnittpunkt – la meilleure salle de montage pour tous',
     tagline: 'La salle de montage qui convient à tous',
-    city: 'Ville', language: 'Langue', darkMode: 'Mode sombre',
+    city: 'Choisissez votre ville', language: 'Langue', darkMode: 'Mode sombre',
     intro: 'Indiquez d’où part chacun et comment il se déplace. Schnittpunkt trouve la salle de montage avec les meilleurs trajets pour tous.',
     roomsLoadFailed: 'Impossible de charger la liste des salles. Rechargez la page.',
     noRoomsYet: 'Aucune salle de montage pour cette ville pour l’instant.',
@@ -106,7 +106,7 @@ export const STRINGS = {
   es: {
     pageTitle: 'Schnittpunkt – la mejor sala de montaje para todos',
     tagline: 'La sala de montaje que conviene a todos',
-    city: 'Ciudad', language: 'Idioma', darkMode: 'Modo oscuro',
+    city: 'Elige tu ciudad', language: 'Idioma', darkMode: 'Modo oscuro',
     intro: 'Indica desde dónde sale cada persona y cómo viaja. Schnittpunkt encuentra la sala de montaje con los mejores trayectos para todos.',
     roomsLoadFailed: 'No se pudo cargar la lista de salas. Recarga la página.',
     noRoomsYet: 'Todavía no hay salas de montaje para esta ciudad.',

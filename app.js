@@ -1,7 +1,7 @@
-import { config, cities } from './config.js?v=29446b1c2e';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=29446b1c2e';
-import * as api from './services.js?v=29446b1c2e';
-import { STRINGS, LANGS } from './i18n.js?v=29446b1c2e';
+import { config, cities } from './config.js?v=c0e4e6413a';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=c0e4e6413a';
+import * as api from './services.js?v=c0e4e6413a';
+import { STRINGS, LANGS } from './i18n.js?v=c0e4e6413a';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 
@@ -584,7 +584,6 @@ function render() {
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
   const city = document.getElementById('city');
   city.replaceChildren(...Object.entries(cities).map(([id, c]) => el('option', { value: id, selected: id === config.cityId, text: c.names?.[state.lang] ?? c.name })));
-  city.setAttribute('aria-label', t('city'));
   const lang = document.getElementById('lang');
   lang.replaceChildren(...LANGS.map(([code, name]) => el('option', { value: code, selected: code === state.lang, text: name })));
   lang.setAttribute('aria-label', t('language'));
