@@ -6,7 +6,7 @@ import { STRINGS, LANGS } from './i18n.js';
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 
 const state = {
-  lang: STRINGS[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'en',
+  lang: STRINGS[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'de', // German audience first
   dark: localStorage.getItem('theme') !== 'light',
   rooms: [],
   roomsError: false,
