@@ -1,6 +1,6 @@
 // All network access: geocoding (Photon), street routing (OSRM), public transport (Transitous).
-import { decodePolyline } from './core.js?v=cec235c22e';
-import { config } from './config.js?v=cec235c22e';
+import { decodePolyline } from './core.js?v=4ddc0e54ab';
+import { config } from './config.js?v=4ddc0e54ab';
 
 const OSRM = {
   car: 'https://routing.openstreetmap.de/routed-car/table/v1/driving/',
@@ -16,12 +16,12 @@ async function getJson(url, options = {}) {
 }
 
 // Photon (komoot, OpenStreetMap data) allows search-as-you-type; callers debounce and abort stale requests.
-const PHOTON_LANGS = ['de', 'en', 'fr'];
+const photonLang = (lang) => (['de', 'en', 'fr'].includes(lang) ? lang : 'default');
 export async function suggest(query, lang, signal) {
   const c = config.city;
   const [west, north, east, south] = c.viewbox;
   const params = new URLSearchParams({
-    q: query, limit: '6', lang: PHOTON_LANGS.includes(lang) ? lang : 'default',
+    q: query, limit: '6', lang: photonLang(lang),
     bbox: [west, south, east, north].join(','), lat: String(c.center[0]), lon: String(c.center[1]),
   });
   const data = await getJson(`https://photon.komoot.io/api/?${params}`, { signal });
@@ -41,7 +41,7 @@ export async function suggest(query, lang, signal) {
 
 // Address of a point on the map ("Torstraße 1, 10119 Berlin"), or null.
 export async function reverse(lat, lon, lang) {
-  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), limit: '1', lang: PHOTON_LANGS.includes(lang) ? lang : 'default' });
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), limit: '1', lang: photonLang(lang) });
   const data = await getJson(`https://photon.komoot.io/reverse?${params}`);
   const p = data.features?.[0]?.properties;
   return p ? shortAddress(p) : null;
@@ -69,7 +69,6 @@ export async function streetMinutes(person, rooms, signal) {
   return data.durations[0].slice(1).map((s) => (s == null ? null : s / 60));
 }
 
-// Minutes by public transport (or on foot, if faster) arriving by `arriveBy` (Date).
 // The fastest public transport journey (or walking, if faster) arriving by `arriveBy`; null if none.
 async function fastestTransit(person, room, arriveBy, signal) {
   const params = new URLSearchParams({

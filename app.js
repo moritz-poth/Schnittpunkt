@@ -1,7 +1,7 @@
-import { config, cities, REPORT_URL } from './config.js?v=cec235c22e';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=cec235c22e';
-import * as api from './services.js?v=cec235c22e';
-import { STRINGS, LANGS } from './i18n.js?v=cec235c22e';
+import { config, cities, REPORT_URL } from './config.js?v=4ddc0e54ab';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=4ddc0e54ab';
+import * as api from './services.js?v=4ddc0e54ab';
+import { STRINGS, LANGS } from './i18n.js?v=4ddc0e54ab';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 // One colour per person (by position A, B, …) for badge, map marker and route line.
@@ -10,7 +10,7 @@ const personColor = (i) => PERSON_COLORS[i % PERSON_COLORS.length];
 const badgeStyle = (i) => `background:${personColor(i)};color:#17191b`;
 
 const state = {
-  lang: STRINGS[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'de', // German audience first
+  lang: Object.hasOwn(STRINGS, localStorage.getItem('lang')) ? localStorage.getItem('lang') : 'de', // German audience first
   dark: localStorage.getItem('theme') !== 'light',
   rooms: [],
   roomsError: false,
@@ -25,7 +25,9 @@ const state = {
   criterion: 'fair',
   results: null,
   progress: null, // { done, total, ctrl }
+  resolving: false, // typed addresses are being looked up before a calculation
 };
+let focusDay = null; // the calendar day that has keyboard focus
 
 // ---------- helpers ----------
 
@@ -79,7 +81,6 @@ function invalidate() {
   state.progress?.ctrl.abort();
   clearRoutes();
 }
-
 
 function newPerson() {
   return { id: newId(), name: '', query: '', lat: null, lon: null, address: '', mode: 'transit', results: null, active: -1, searching: false };
@@ -294,7 +295,6 @@ function calendar(selected) {
         });
       })));
 }
-let focusDay = null;
 
 function timeList(current) {
   return el('ul', { class: 'choices popover times', id: 'time-list', role: 'listbox', 'aria-label': t('arriveTime') },
@@ -498,7 +498,7 @@ async function calculate() {
     state.resolving = false;
     if (open.some((p) => p.lat == null)) { render(); return; }
   }
-  const people = state.people.filter((p) => p.lat != null).map((p, i) => ({ ...p }));
+  const people = state.people.filter((p) => p.lat != null).map((p) => ({ ...p }));
   const rooms = pickCandidates(state.rooms, people);
   const arrive = new Date(state.arrive);
   const ctrl = new AbortController();
@@ -570,8 +570,9 @@ function resultsView() {
         : t('noRoute')),
       el('ul', { class: 'chips' }, row.minutes.map((m, pi) => {
         const p = res.people[pi];
+        const n = state.people.findIndex((q) => q.id === p.id);
         return el('li', { class: 'chip' + (m != null && m === row.score.max ? ' longest' : '') },
-          el('span', { class: 'badge small', 'aria-hidden': 'true', style: badgeStyle(state.people.findIndex((q) => q.id === p.id)), text: letter(state.people.findIndex((q) => q.id === p.id)) }),
+          el('span', { class: 'badge small', 'aria-hidden': 'true', style: badgeStyle(n), text: letter(n) }),
           el('span', { class: 'sr', text: p.name || '' }),
           ` ${MODE_ICON[p.mode]} ${fmtMin(m)}`,
           m != null && m === row.score.max ? el('span', { class: 'sr', text: ` (${t('longest')})` }) : null);
@@ -785,5 +786,5 @@ document.getElementById('city').addEventListener('change', (e) => {
 });
 
 const fromHash = location.hash.slice(1);
-setCity(cities[fromHash] ? fromHash : 'berlin', false);
+setCity(Object.hasOwn(cities, fromHash) ? fromHash : 'berlin', false);
 showNotice();
