@@ -64,7 +64,7 @@ button:hover:not(:disabled), .button:hover { background: var(--sel); }
 button:disabled { color: var(--faint); cursor: default; opacity: 0.7; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Text fields and drop-downs: no blue ring, only a slightly lighter (dark mode) / darker (light mode) border (user request 2026-11-24). */
-input:focus, textarea:focus, select:focus, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; border-color: var(--faint); }
+input:focus, textarea:focus, select:focus, input:focus-visible, textarea:focus-visible, select:focus-visible, .menu:focus-visible { outline: none; border-color: var(--faint); }
 input[type=text], input[type=password], input[type=datetime-local] { background: var(--bg); width: 100%; cursor: text; }
 /* Own look instead of Safari's native pop-up button; the option list itself stays the system one. */
 select {
@@ -100,8 +100,9 @@ dialog::backdrop { background: #000a; }
 .arrive { margin-top: 16px; }
 .pop-anchor { position: relative; display: inline-flex; }
 .arrive .pick { background: var(--bg); min-height: 32px; }
-.arrive .caret { color: var(--faint); font-size: 10px; margin-left: 4px; }
-.arrive .pick.open { border-color: var(--accent); }
+.caret { color: var(--faint); font-size: 10px; margin-left: 4px; }
+.arrive .pick.open, .menu.open { border-color: var(--accent); }
+.menu { background: var(--bg); }
 .arrive input.time { width: 76px; text-align: center; cursor: text; }
 .popover { position: absolute; z-index: 1000; top: 100%; margin-top: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px #0005; }
 .cal { left: 0; padding: 10px; width: 272px; }
@@ -116,6 +117,7 @@ dialog::backdrop { background: #000a; }
 .day.today:not(.on) { border-color: var(--line); }
 .day:disabled { opacity: 0.35; }
 .day.on:hover:not(:disabled), .cal-quick .on:hover { background: var(--primary); opacity: 0.88; }
+.choices.menu-list.popover { right: 0; min-width: 100%; max-height: 60vh; overflow-y: auto; white-space: nowrap; }
 .choices.times.popover { left: 0; max-height: 220px; overflow-y: auto; width: 100%; min-width: 76px; text-align: center; margin-top: 4px; }
 
 .card { background: var(--card); border: 1px solid var(--card-line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }

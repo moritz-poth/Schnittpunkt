@@ -1,7 +1,7 @@
-import { config, cities, REPORT_URL } from './config.js?v=4ddc0e54ab';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=4ddc0e54ab';
-import * as api from './services.js?v=4ddc0e54ab';
-import { STRINGS, LANGS } from './i18n.js?v=4ddc0e54ab';
+import { config, cities, REPORT_URL } from './config.js?v=7a20553c6d';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=7a20553c6d';
+import * as api from './services.js?v=7a20553c6d';
+import { STRINGS, LANGS } from './i18n.js?v=7a20553c6d';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 // One colour per person (by position A, B, …) for badge, map marker and route line.
@@ -26,6 +26,7 @@ const state = {
   results: null,
   progress: null, // { done, total, ctrl }
   resolving: false, // typed addresses are being looked up before a calculation
+  menu: null, // the open top-bar list: { id: 'city' | 'lang', active: index }
 };
 let focusDay = null; // the calendar day that has keyboard focus
 
@@ -380,6 +381,7 @@ document.getElementById('panel').addEventListener('keydown', (e) => {
 for (const type of ['mousedown', 'focusin']) {
   document.addEventListener(type, (e) => {
     if (state.picker && !e.target.closest?.('.arrive')) closePicker();
+    if (state.menu && !e.target.closest?.(`#${state.menu.id}-menu`)) { state.menu = null; renderTop(); }
   });
 }
 
@@ -726,16 +728,56 @@ function showView(view, focusId) {
 
 // ---------- shell ----------
 
+// City and language: own lists that open below the field (macOS lays a <select> menu over the field).
+// Select-only combobox (WAI-ARIA): focus stays on the button, arrows move, Enter/Space/click picks, Escape closes.
+function dropMenu(id, items, current, onPick, label) {
+  const open = state.menu?.id === id;
+  const sel = Math.max(items.findIndex(([v]) => v === current), 0);
+  const active = open ? state.menu.active : sel;
+  const show = (i) => {
+    state.menu = { id, active: i };
+    renderTop();
+    document.getElementById(`${id}-${i}`)?.scrollIntoView({ block: 'nearest' });
+  };
+  const pick = (v) => {
+    state.menu = null;
+    if (v === current) renderTop(); else onPick(v);
+  };
+  const onkeydown = (e) => {
+    const step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+    if (step) { e.preventDefault(); show(open ? (active + step + items.length) % items.length : sel); }
+    else if (open && (e.key === 'Home' || e.key === 'End')) { e.preventDefault(); show(e.key === 'Home' ? 0 : items.length - 1); }
+    else if (open && (e.key === 'Escape' || e.key === 'Tab')) { if (e.key === 'Escape') e.preventDefault(); state.menu = null; renderTop(); }
+  };
+  return [
+    el('button', {
+      type: 'button', id, class: 'menu' + (open ? ' open' : ''), role: 'combobox', 'aria-haspopup': 'listbox', 'aria-expanded': String(open),
+      'aria-controls': `${id}-list`, 'aria-activedescendant': open ? `${id}-${active}` : null, 'aria-label': label,
+      onclick: () => (open ? pick(items[active][0]) : show(sel)), onkeydown,
+    }, items[sel][1], el('span', { class: 'caret', 'aria-hidden': 'true', text: '▾' })),
+    open ? el('ul', { class: 'choices popover menu-list', id: `${id}-list`, role: 'listbox', 'aria-label': label },
+      items.map(([v, text], i) => el('li', {
+        id: `${id}-${i}`, role: 'option', class: 'choice' + (i === active ? ' on' : ''), 'aria-selected': String(v === current),
+        onmousedown: (e) => e.preventDefault(), // keep focus on the button
+        onclick: () => pick(v), text,
+      }))) : null,
+  ].filter(Boolean); // replaceChildren would write a null as the text "null"
+}
+
+function renderTop() {
+  const focusId = document.activeElement?.id;
+  document.getElementById('city-menu').replaceChildren(...dropMenu('city',
+    Object.entries(cities).map(([id, c]) => [id, c.names?.[state.lang] ?? c.name]), config.cityId, pickCity));
+  document.getElementById('lang-menu').replaceChildren(...dropMenu('lang', LANGS, state.lang, pickLang, t('language')));
+  if (focusId === 'city' || focusId === 'lang') document.getElementById(focusId).focus();
+}
+
 function render() {
   document.documentElement.lang = state.lang;
   document.documentElement.classList.toggle('dark', state.dark);
   document.title = t('pageTitle');
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
-  const city = document.getElementById('city');
-  city.replaceChildren(...Object.entries(cities).map(([id, c]) => el('option', { value: id, selected: id === config.cityId, text: c.names?.[state.lang] ?? c.name })));
-  const lang = document.getElementById('lang');
-  lang.replaceChildren(...LANGS.map(([code, name]) => el('option', { value: code, selected: code === state.lang, text: name })));
-  lang.setAttribute('aria-label', t('language'));
+  renderTop();
   const theme = document.getElementById('theme');
   theme.setAttribute('aria-checked', String(state.dark));
   theme.setAttribute('aria-label', t('darkMode'));
@@ -754,11 +796,11 @@ function render() {
   drawMap();
 }
 
-document.getElementById('lang').addEventListener('change', (e) => {
-  state.lang = e.target.value;
-  localStorage.setItem('lang', state.lang);
+function pickLang(code) {
+  state.lang = code;
+  localStorage.setItem('lang', code);
   render();
-});
+}
 document.getElementById('theme').addEventListener('click', () => {
   state.dark = !state.dark;
   localStorage.setItem('theme', state.dark ? 'dark' : 'light');
@@ -780,10 +822,10 @@ function setCity(id, animate) {
     .finally(() => { if (config.cityId === id) { render(); homeView(animate); } });
 }
 
-document.getElementById('city').addEventListener('change', (e) => {
-  history.replaceState(null, '', e.target.value === 'berlin' ? location.pathname : `#${e.target.value}`);
-  setCity(e.target.value, true);
-});
+function pickCity(id) {
+  history.replaceState(null, '', id === 'berlin' ? location.pathname : `#${id}`);
+  setCity(id, true);
+}
 
 const fromHash = location.hash.slice(1);
 setCity(Object.hasOwn(cities, fromHash) ? fromHash : 'berlin', false);
