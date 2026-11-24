@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "import": "node tools/import-takeout.mjs"
+    "import": "node tools/import-takeout.mjs",
+    "stamp": "node tools/stamp.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.49.0"

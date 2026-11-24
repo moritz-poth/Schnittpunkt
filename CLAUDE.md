@@ -16,6 +16,7 @@ Static website on GitHub Pages (moritz-poth.github.io/Schnittpunkt): ranks editi
 - Pre-filter: ≤ 15 rooms are all routed, otherwise best 10 by estimated longest trip ∪ best 10 by estimated total.
 
 ## Check
+- Before committing a .js/.css change: `npm run stamp` (content hash as ?v= on every own import and on style.css/app.js in index.html; GitHub Pages caches files 10 min, unstamped deploys mixed old config.js with new app.js on 2026-11-24 and broke the page). The test fails if forgotten.
 - `node --test test/*.test.mjs`
 - Browser: `python3 -m http.server`, Playwright (playwright-core devDependency, channel chrome).
 - The CSP in index.html lists every allowed host; a new service must be added there.

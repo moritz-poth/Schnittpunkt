@@ -1,7 +1,7 @@
-import { config, cities } from './config.js';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js';
-import * as api from './services.js';
-import { STRINGS, LANGS } from './i18n.js';
+import { config, cities } from './config.js?v=29446b1c2e';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=29446b1c2e';
+import * as api from './services.js?v=29446b1c2e';
+import { STRINGS, LANGS } from './i18n.js?v=29446b1c2e';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 

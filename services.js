@@ -1,5 +1,5 @@
 // All network access: geocoding (Photon), street routing (OSRM), public transport (Transitous).
-import { config } from './config.js';
+import { config } from './config.js?v=29446b1c2e';
 
 const OSRM = {
   car: 'https://routing.openstreetmap.de/routed-car/table/v1/driving/',

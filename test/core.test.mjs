@@ -70,3 +70,16 @@ test('month grid: 42 days starting on the Monday before the 1st', () => {
   const june = monthGrid(2026, 5); // 1 June 2026 is a Monday
   assert.equal(june[0].getDate(), 1);
 });
+
+test('every own module and the style sheet carry the current stamp (run npm run stamp)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { FILES, contentHash } = await import('../tools/stamp.mjs');
+  const v = contentHash();
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, new RegExp(`app\\.js\\?v=${v}"`));
+  assert.match(html, new RegExp(`style\\.css\\?v=${v}"`));
+  for (const f of FILES.filter((n) => n.endsWith('.js'))) {
+    const text = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    for (const m of text.matchAll(/from '(\.\/[^']+)'/g)) assert.equal(m[1].split('?v=')[1], v, `${f}: ${m[1]}`);
+  }
+});
