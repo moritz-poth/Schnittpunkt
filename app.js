@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, newId } from './core.js';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js';
 import * as api from './services.js';
 import { STRINGS, LANGS } from './i18n.js';
 
@@ -11,7 +11,10 @@ const state = {
   rooms: [],
   roomsError: false,
   people: [],
-  arrive: defaultArrival(),
+  arrive: defaultArrival(), // "YYYY-MM-DDTHH:MM", local time
+  picker: null, // null | 'date' | 'time'
+  pickMonth: null, // first day of the month shown in the calendar
+  timeText: null, // the time field while someone types in it
   view: 'plan', // 'plan' | 'rooms'
   criterion: 'fair',
   results: null,
@@ -50,13 +53,20 @@ function fmtMin(m) {
   return r < 60 ? `${r} min` : `${Math.floor(r / 60)} h ${String(r % 60).padStart(2, '0')} min`;
 }
 
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+function ymd(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+const TIMES = Array.from({ length: 96 }, (_, i) => `${pad(Math.floor(i / 4))}:${pad((i % 4) * 15)}`);
+
 // shortcut: the time is read in the browser's time zone; fine while users sit in the city they plan for.
 function defaultArrival() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T10:00`;
+  return `${ymd(d)}T10:00`;
 }
 
 // Inputs changed: old results no longer apply, a running calculation is stopped.
@@ -136,6 +146,163 @@ function fitResults() {
     ...state.results.rows.slice(0, 3).map((r) => [r.room.lat, r.room.lon]),
   ];
   if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
+}
+
+// ---------- arrival date and time ----------
+
+function setArrive(date, time) {
+  const next = `${date}T${time}`;
+  if (next !== state.arrive) { state.arrive = next; invalidate(); }
+}
+
+// Takes over what was typed into the time field; unreadable text goes back to the last time.
+function commitTime() {
+  if (state.timeText == null) return;
+  const time = parseTime(state.timeText);
+  if (time) setArrive(state.arrive.slice(0, 10), time);
+  state.timeText = null;
+}
+
+function closePicker(focusId) {
+  commitTime();
+  state.picker = null;
+  render();
+  if (focusId) document.getElementById(focusId)?.focus();
+}
+
+function dateLabel(d) {
+  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString(state.lang, opts);
+}
+
+function pickDate(d) {
+  setArrive(ymd(d), state.arrive.slice(11));
+  closePicker('arrive-date');
+}
+
+function calendar(selected) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const month = state.pickMonth;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const shiftMonth = (n) => { state.pickMonth = new Date(month.getFullYear(), month.getMonth() + n, 1); render(); };
+  // Arrow keys move through the days; only the selected day is a tab stop.
+  const onKey = (e, d) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (e.key === 'Escape') { e.preventDefault(); closePicker('arrive-date'); return; }
+    if (!step) return;
+    e.preventDefault();
+    const next = new Date(d);
+    next.setDate(d.getDate() + step);
+    if (next < today) return;
+    state.pickMonth = new Date(next.getFullYear(), next.getMonth(), 1);
+    focusDay = ymd(next);
+    render();
+    document.getElementById(`d-${focusDay}`)?.focus();
+  };
+  const weekdays = monthGrid(2024, 0).slice(0, 7).map((d) => d.toLocaleDateString(state.lang, { weekday: 'short' }).replace('.', '').slice(0, 2));
+  const stop = focusDay && focusDay.slice(0, 7) === ymd(month).slice(0, 7) ? focusDay : (ymd(selected).slice(0, 7) === ymd(month).slice(0, 7) ? ymd(selected) : ymd(month < today ? today : month));
+  return el('div', { class: 'popover cal', role: 'dialog', 'aria-label': t('chooseDate') },
+    el('div', { class: 'cal-quick' },
+      el('button', { type: 'button', class: ymd(selected) === ymd(today) ? 'on' : '', text: t('today'), onclick: () => pickDate(today) }),
+      el('button', { type: 'button', class: ymd(selected) === ymd(tomorrow) ? 'on' : '', text: t('tomorrow'), onclick: () => pickDate(tomorrow) })),
+    el('div', { class: 'cal-head' },
+      el('button', { type: 'button', class: 'icon', 'aria-label': t('prevMonth'), title: t('prevMonth'), text: '‹', disabled: month <= new Date(today.getFullYear(), today.getMonth(), 1), onclick: () => shiftMonth(-1) }),
+      el('strong', { 'aria-live': 'polite', text: month.toLocaleDateString(state.lang, { month: 'long', year: 'numeric' }) }),
+      el('button', { type: 'button', class: 'icon', 'aria-label': t('nextMonth'), title: t('nextMonth'), text: '›', onclick: () => shiftMonth(1) })),
+    el('div', { class: 'cal-grid' },
+      weekdays.map((w) => el('span', { class: 'cal-wd', 'aria-hidden': 'true', text: w })),
+      monthGrid(month.getFullYear(), month.getMonth()).map((d) => {
+        const key = ymd(d);
+        const cls = ['day', d.getMonth() !== month.getMonth() && 'out', key === ymd(today) && 'today', key === ymd(selected) && 'on'].filter(Boolean).join(' ');
+        return el('button', {
+          type: 'button', id: `d-${key}`, class: cls, text: String(d.getDate()), disabled: d < today,
+          tabindex: key === stop ? '0' : '-1', 'aria-pressed': String(key === ymd(selected)),
+          'aria-label': d.toLocaleDateString(state.lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          onclick: () => pickDate(d), onkeydown: (e) => onKey(e, d),
+        });
+      })));
+}
+let focusDay = null;
+
+function timeList(current) {
+  return el('ul', { class: 'choices popover times', id: 'time-list', role: 'listbox', 'aria-label': t('arriveTime') },
+    TIMES.map((time) => el('li', {
+      id: `t-${time.replace(':', '')}`, role: 'option', class: 'choice' + (time === current ? ' on' : ''), 'aria-selected': String(time === current),
+      onmousedown: (e) => e.preventDefault(), // keep focus in the field
+      onclick: () => { state.timeText = null; setArrive(state.arrive.slice(0, 10), time); closePicker(); },
+      text: time,
+    })));
+}
+
+function timeKey(e) {
+  const typed = state.timeText != null ? parseTime(state.timeText) : null;
+  const current = typed || state.arrive.slice(11);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    // Next quarter hour up or down from the current time.
+    const [h, m] = current.split(':').map(Number);
+    const mins = h * 60 + m;
+    const next = e.key === 'ArrowDown' ? Math.floor(mins / 15) * 15 + 15 : Math.ceil(mins / 15) * 15 - 15;
+    state.timeText = null;
+    setArrive(state.arrive.slice(0, 10), TIMES[(next / 15 + 96) % 96]);
+    state.picker = 'time';
+    render();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    closePicker('arrive-time');
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    state.timeText = null;
+    closePicker('arrive-time');
+  }
+}
+
+function arrivalPicker() {
+  const [date, time] = state.arrive.split('T');
+  const day = new Date(`${date}T00:00`);
+  const shownTime = state.timeText ?? time;
+  const listTime = (state.timeText != null && parseTime(state.timeText)) || time;
+  return el('div', { class: 'arrive' },
+    el('label', { for: 'arrive-date', text: t('arriveBy') }),
+    el('div', { class: 'row' },
+      el('span', { class: 'pop-anchor' }, el('button', {
+        type: 'button', id: 'arrive-date', class: 'pick' + (state.picker === 'date' ? ' open' : ''),
+        'aria-haspopup': 'dialog', 'aria-expanded': String(state.picker === 'date'), 'aria-label': `${t('chooseDate')}: ${dateLabel(day)}`,
+        onclick: () => {
+          if (state.picker === 'date') { closePicker(); return; }
+          commitTime();
+          state.picker = 'date';
+          state.pickMonth = new Date(day.getFullYear(), day.getMonth(), 1);
+          focusDay = null;
+          render();
+          document.getElementById(`d-${date}`)?.focus();
+        },
+      }, el('span', { 'aria-hidden': 'true', text: '📅' }), dateLabel(day), el('span', { class: 'caret', 'aria-hidden': 'true', text: '▾' })),
+      state.picker === 'date' ? calendar(day) : null),
+      el('span', { class: 'pop-anchor' }, el('input', {
+        type: 'text', id: 'arrive-time', class: 'pick time', inputmode: 'numeric', autocomplete: 'off', value: shownTime,
+        'aria-label': t('arriveTime'), role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': String(state.picker === 'time'),
+        'aria-controls': 'time-list', 'aria-activedescendant': state.picker === 'time' ? `t-${listTime.replace(':', '')}` : null,
+        onclick: () => { if (state.picker !== 'time') { state.picker = 'time'; render(); scrollTimes(); } },
+        oninput: (e) => { state.timeText = e.target.value; state.picker = 'time'; render(); scrollTimes(); },
+        onkeydown: (e) => { timeKey(e); if (e.key.startsWith('Arrow')) scrollTimes(); },
+      }),
+      state.picker === 'time' ? timeList(listTime) : null),
+      t('oClock') ? el('span', { class: 'muted', text: t('oClock') }) : null));
+}
+
+function scrollTimes() {
+  document.querySelector('#time-list .on')?.scrollIntoView({ block: 'center' });
+}
+
+// A click or focus outside the date and time controls closes their pop-up.
+for (const type of ['mousedown', 'focusin']) {
+  document.addEventListener(type, (e) => {
+    if (state.picker && !e.target.closest?.('.arrive')) closePicker();
+  });
 }
 
 // ---------- plan view ----------
@@ -338,9 +505,7 @@ function planView() {
     el('h2', { text: t('whoIsComing') }),
     state.people.map(personCard),
     el('button', { type: 'button', class: 'add', text: `+ ${t('addPerson')}`, onclick: () => { state.people.push(newPerson()); render(); document.getElementById(`p-${state.people.at(-1).id}`)?.focus(); } }),
-    el('div', { class: 'row arrive' },
-      el('label', { for: 'arrive', text: t('arriveBy') }),
-      el('input', { id: 'arrive', type: 'datetime-local', value: state.arrive, onchange: (e) => { state.arrive = e.target.value; invalidate(); render(); } })),
+    arrivalPicker(),
     usesTransit ? null : el('p', { class: 'hint', text: t('arriveHint') }),
     state.progress
       ? el('div', { class: 'progress', role: 'status' },

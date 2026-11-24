@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords } from '../core.js';
+import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid } from '../core.js';
 
 test('distance Alexanderplatz – Brandenburger Tor is about 2.6 km', () => {
   const d = distanceKm({ lat: 52.5219, lon: 13.4132 }, { lat: 52.5163, lon: 13.3777 });
@@ -46,4 +46,22 @@ test('rooms.json: unique ids, name, address and a position in Berlin', async () 
     assert.ok(r.name && r.address, r.id);
     assert.ok(r.lat > 52.3 && r.lat < 52.7 && r.lon > 13.0 && r.lon < 13.8, r.id);
   }
+});
+
+test('time: messy input becomes HH:MM, nonsense is rejected', () => {
+  for (const [input, want] of [['9', '09:00'], ['930', '09:30'], ['9:30', '09:30'], ['9.30', '09:30'], ['9 30', '09:30'],
+    ['1030', '10:30'], ['10:30 Uhr', '10:30'], ['21h', '21:00'], [' 7:05 ', '07:05'], ['0', '00:00']]) {
+    assert.equal(parseTime(input), want, input);
+  }
+  for (const bad of ['', '24', '9:60', 'abc', '12345', null]) assert.equal(parseTime(bad), null, String(bad));
+});
+
+test('month grid: 42 days starting on the Monday before the 1st', () => {
+  const days = monthGrid(2026, 10); // November 2026 starts on a Sunday
+  assert.equal(days.length, 42);
+  assert.equal(days[0].getDay(), 1);
+  assert.equal(days[6].getDate(), 1);
+  assert.equal(days[6].getMonth(), 10);
+  const june = monthGrid(2026, 5); // 1 June 2026 is a Monday
+  assert.equal(june[0].getDate(), 1);
 });

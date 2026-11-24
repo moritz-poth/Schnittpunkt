@@ -74,3 +74,19 @@ export function parseCoords(text) {
 export function newId() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+// Accepts "9", "930", "9:30", "9.30", "9 30", "9:30 Uhr", "21h" and returns "09:30"; null if not a time.
+export function parseTime(text) {
+  const m = String(text ?? '').trim().match(/^(\d{1,2})(?:\s*[:.h ]?\s*(\d{2}))?\s*(?:uhr|h)?$/i);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+// The 42 days (6 weeks, Monday first) shown for a month in a calendar grid.
+export function monthGrid(year, month) {
+  const offset = (new Date(year, month, 1).getDay() + 6) % 7;
+  return Array.from({ length: 42 }, (_, i) => new Date(year, month, 1 - offset + i));
+}
