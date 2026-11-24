@@ -64,6 +64,8 @@ button, .button { cursor: pointer; display: inline-flex; align-items: center; ga
 button:hover:not(:disabled), .button:hover { background: var(--sel); }
 button:disabled { color: var(--faint); cursor: default; opacity: 0.7; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Text fields and drop-downs: no blue ring, only a slightly lighter (dark mode) / darker (light mode) border (user request 2026-11-24). */
+input:focus, textarea:focus, select:focus, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; border-color: var(--faint); }
 input[type=text], input[type=password], input[type=datetime-local] { background: var(--bg); width: 100%; cursor: text; }
 /* Own look instead of Safari's native pop-up button; the option list itself stays the system one. */
 select {

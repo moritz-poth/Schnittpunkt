@@ -1,7 +1,7 @@
-import { config, cities, REPORT_URL } from './config.js?v=3ada22ffd4';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=3ada22ffd4';
-import * as api from './services.js?v=3ada22ffd4';
-import { STRINGS, LANGS } from './i18n.js?v=3ada22ffd4';
+import { config, cities, REPORT_URL } from './config.js?v=cec235c22e';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=cec235c22e';
+import * as api from './services.js?v=cec235c22e';
+import { STRINGS, LANGS } from './i18n.js?v=cec235c22e';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 // One colour per person (by position A, B, …) for badge, map marker and route line.
