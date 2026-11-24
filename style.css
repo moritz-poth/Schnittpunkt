@@ -73,6 +73,7 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 #show-rooms { margin-bottom: 8px; }
 .leaflet-tooltip .note { display: block; max-width: 260px; white-space: normal; margin-top: 4px; font-style: italic; }
 .room-list li { border-bottom: 1px solid var(--card-line); padding: 8px; margin: 0 -8px; border-radius: 6px; }
+.room-list .note { display: block; margin-top: 0.75em; } /* half a line between address and comment */
 .room-list li.hover { background: var(--sel); }
 
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }

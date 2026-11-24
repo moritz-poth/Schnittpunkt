@@ -542,7 +542,7 @@ function roomsView() {
     },
       el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(room) },
         el('span', { class: 'grow' }, el('strong', { text: room.name }), el('br'), el('span', { class: 'muted', text: room.address || '' }),
-          room.note ? el('span', { class: 'muted note' }, el('br'), room.note) : null))))));
+          room.note ? el('span', { class: 'muted note', text: room.note }) : null))))));
 }
 
 function showView(view, focusId) {
