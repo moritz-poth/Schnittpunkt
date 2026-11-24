@@ -62,11 +62,9 @@ function ymd(d) {
 const TIMES = Array.from({ length: 96 }, (_, i) => `${pad(Math.floor(i / 4))}:${pad((i % 4) * 15)}`);
 
 // shortcut: the time is read in the browser's time zone; fine while users sit in the city they plan for.
+// Default: today, arrive by 9:00 (user decision 2026-11-24).
 function defaultArrival() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  return `${ymd(d)}T10:00`;
+  return `${ymd(new Date())}T09:00`;
 }
 
 // Inputs changed: old results no longer apply, a running calculation is stopped.
