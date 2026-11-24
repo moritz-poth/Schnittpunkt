@@ -1,7 +1,7 @@
-import { config, cities, REPORT_URL } from './config.js?v=7a20553c6d';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=7a20553c6d';
-import * as api from './services.js?v=7a20553c6d';
-import { STRINGS, LANGS } from './i18n.js?v=7a20553c6d';
+import { config, cities, REPORT_URL } from './config.js?v=2bf0b391a4';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=2bf0b391a4';
+import * as api from './services.js?v=2bf0b391a4';
+import { STRINGS, LANGS } from './i18n.js?v=2bf0b391a4';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 // One colour per person (by position A, B, …) for badge, map marker and route line.
@@ -766,6 +766,9 @@ function dropMenu(id, items, current, onPick, label) {
 
 function renderTop() {
   const focusId = document.activeElement?.id;
+  // Only one city: nothing to choose, menu and its label stay hidden.
+  const cityShown = Object.keys(cities).length > 1 ? '' : 'none';
+  document.getElementById('city-menu').style.display = document.querySelector('label[for=city]').style.display = cityShown;
   document.getElementById('city-menu').replaceChildren(...dropMenu('city',
     Object.entries(cities).map(([id, c]) => [id, c.names?.[state.lang] ?? c.name]), config.cityId, pickCity));
   document.getElementById('lang-menu').replaceChildren(...dropMenu('lang', LANGS, state.lang, pickLang, t('language')));
@@ -807,7 +810,7 @@ document.getElementById('theme').addEventListener('click', () => {
   render();
 });
 
-// The city sits in the address (#muenchen), so a link opens the right one; nothing is stored.
+// The city sits in the address (#<city id>, Berlin without), so a link opens the right one; nothing is stored.
 function setCity(id, animate) {
   config.cityId = id;
   config.city = cities[id];

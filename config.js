@@ -8,14 +8,6 @@ export const cities = {
     viewbox: [13.05, 52.7, 13.8, 52.33],
     countrycodes: 'de',
   },
-  muenchen: {
-    name: 'München',
-    names: { en: 'Munich', fr: 'Munich', es: 'Múnich' },
-    center: [48.137, 11.575],
-    zoom: 11,
-    viewbox: [11.36, 48.25, 11.73, 48.06],
-    countrycodes: 'de',
-  },
 };
 
 // Room reports from the form go to Moe's report worker (Cloudflare), which files them as issues in the
