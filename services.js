@@ -94,8 +94,8 @@ export async function runLimited(tasks, limit, onDone) {
   return results;
 }
 
-export async function loadRooms() {
-  const res = await fetch('rooms.json', { cache: 'no-cache' });
+export async function loadRooms(cityId) {
+  const res = await fetch(`rooms/${cityId}.json`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

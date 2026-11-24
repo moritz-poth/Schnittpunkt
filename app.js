@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config, cities } from './config.js';
 import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js';
 import * as api from './services.js';
 import { STRINGS, LANGS } from './i18n.js';
@@ -125,7 +125,11 @@ function hoverRoom(id, on) {
 // Start view: every room visible with a little room around it.
 function homeView(animate) {
   for (const m of markers.values()) m.closeTooltip();
-  if (!state.rooms.length) return;
+  if (!state.rooms.length) {
+    const { center, zoom } = config.city;
+    if (animate) map.flyTo(center, zoom, { duration: 0.6 }); else map.setView(center, zoom);
+    return;
+  }
   const bounds = L.latLngBounds(state.rooms.map((r) => [r.lat, r.lon]));
   if (animate) map.flyToBounds(bounds, { padding: [30, 30], duration: 0.6 });
   else map.fitBounds(bounds, { padding: [30, 30] });
@@ -578,6 +582,9 @@ function render() {
   document.documentElement.classList.toggle('dark', state.dark);
   document.title = t('pageTitle');
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  const city = document.getElementById('city');
+  city.replaceChildren(...Object.entries(cities).map(([id, c]) => el('option', { value: id, selected: id === config.cityId, text: c.names?.[state.lang] ?? c.name })));
+  city.setAttribute('aria-label', t('city'));
   const lang = document.getElementById('lang');
   lang.replaceChildren(...LANGS.map(([code, name]) => el('option', { value: code, selected: code === state.lang, text: name })));
   lang.setAttribute('aria-label', t('language'));
@@ -610,9 +617,24 @@ document.getElementById('theme').addEventListener('click', () => {
   render();
 });
 
+// The city sits in the address (#muenchen), so a link opens the right one; nothing is stored.
+function setCity(id, animate) {
+  config.cityId = id;
+  config.city = cities[id];
+  Object.assign(state, { rooms: [], roomsError: false });
+  invalidate();
+  render();
+  api.loadRooms(id)
+    .then((rooms) => { if (config.cityId === id) state.rooms = rooms; })
+    .catch(() => { if (config.cityId === id) state.roomsError = true; })
+    .finally(() => { if (config.cityId === id) { render(); homeView(animate); } });
+}
+
+document.getElementById('city').addEventListener('change', (e) => {
+  history.replaceState(null, '', e.target.value === 'berlin' ? location.pathname : `#${e.target.value}`);
+  setCity(e.target.value, true);
+});
+
 state.people.push(newPerson(), newPerson());
-render();
-api.loadRooms()
-  .then((rooms) => { state.rooms = rooms; })
-  .catch(() => { state.roomsError = true; })
-  .finally(() => { render(); homeView(false); });
+const fromHash = location.hash.slice(1);
+setCity(cities[fromHash] ? fromHash : 'berlin', false);

@@ -1,21 +1,22 @@
-// Builds rooms.json from a Google Takeout "Saved" list (CSV).
+// Builds rooms/<city>.json from a Google Takeout "Saved" list (CSV).
 // The CSV links hold no coordinates, so each link is opened in Chrome: Google Maps then shows
 // the place's coordinates in the URL and its address on the page.
 //
 //   npm install            (once, installs playwright-core; uses the installed Google Chrome)
-//   node tools/import-takeout.mjs "<path>/Takeout/Gespeichert/<list>.csv"
+//   node tools/import-takeout.mjs <city> "<path>/Takeout/Gespeichert/<list>.csv"   (city = id in config.js, e.g. berlin)
 //
-// Writes rooms.json and prints every room for a check. Rooms are matched by name: a room that was
-// in rooms.json before keeps its id; a corrected position or address in rooms.json is kept too.
+// Writes rooms/<city>.json and prints every room for a check. Rooms are matched by name: a room that was
+// in that file before keeps its id; a corrected position or address there is kept too.
 import { chromium } from 'playwright-core';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { cities } from '../config.js';
 
-const src = process.argv[2];
-if (!src) {
-  console.error('usage: node tools/import-takeout.mjs <takeout list.csv>');
+const [city, src] = process.argv.slice(2);
+if (!cities[city] || !src) {
+  console.error(`usage: node tools/import-takeout.mjs <${Object.keys(cities).join('|')}> <takeout list.csv>`);
   process.exit(1);
 }
-const target = new URL('../rooms.json', import.meta.url);
+const target = new URL(`../rooms/${city}.json`, import.meta.url);
 
 // RFC 4180 CSV (quotes, commas and line breaks inside quotes).
 function parseCsv(text) {
@@ -104,5 +105,5 @@ for (const r of rooms) {
   ids.add(r.id);
 }
 writeFileSync(target, JSON.stringify(rooms, null, 2) + '\n');
-console.log(`\n${rooms.length} rooms written to rooms.json.`);
+console.log(`\n${rooms.length} rooms written to rooms/${city}.json.`);
 if (problems.length) console.log(`No position or address found, add by hand:\n  ${problems.join('\n  ')}`);

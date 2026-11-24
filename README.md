@@ -12,18 +12,18 @@ If you use Schnittpunkt and like it, I would be glad if you [bought me a coffee]
 
 ## Rooms
 
-The room list is `rooms.json` in this repository. It is built from a Google Maps list exported with Google Takeout (only "Saved"):
+Each city has its own room list, `rooms/<city>.json` (e.g. `rooms/berlin.json`). A list is built from a Google Maps list exported with Google Takeout (only "Saved"):
 
 ```sh
 npm install                                   # once
-npm run import -- "<path>/Takeout/Saved/<list>.csv"
+npm run import -- berlin "<path>/Takeout/Saved/<list>.csv"
 ```
 
-The script opens each saved place in Google Chrome and reads its position and address. Rooms already in `rooms.json` keep their id, address and position, so corrections made by hand stay. Check the printed list, then commit `rooms.json`.
+The script opens each saved place in Google Chrome and reads its position and address. Rooms already in the city's file keep their id, address and position, so corrections made by hand stay. Check the printed list, then commit the file.
 
 ## Another city
 
-Change `city` in `config.js` (map centre, search area, country) and replace `rooms.json`.
+Add the city to `cities` in `config.js` (name, map centre, search area, country) and create `rooms/<id>.json` (`[]` while it has no rooms yet). The city menu at the top lists it; `#<id>` in the address opens it directly.
 
 ## Development
 
@@ -31,7 +31,7 @@ Plain HTML and JavaScript modules, no build step. Leaflet and JetBrains Mono are
 
 ```sh
 python3 -m http.server 8000   # then open http://localhost:8000
-npm test                      # logic, translations, rooms.json
+npm test                      # logic, translations, room lists
 ```
 
 ## Licence

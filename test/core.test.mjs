@@ -37,15 +37,20 @@ test('coordinates from Google Maps links and plain text', () => {
   assert.equal(parseCoords('https://www.google.com/maps/place/X/data=!4m2!3m1!1s0x47a8:0x1'), null);
 });
 
-test('rooms.json: unique ids, name, address and a position in Berlin', async () => {
+test('rooms/<city>.json: every city has a list; unique ids, name, address, position inside the city', async () => {
   const { readFileSync } = await import('node:fs');
-  const rooms = JSON.parse(readFileSync(new URL('../rooms.json', import.meta.url), 'utf8'));
-  assert.ok(rooms.length > 0);
-  assert.equal(new Set(rooms.map((r) => r.id)).size, rooms.length);
-  for (const r of rooms) {
-    assert.ok(r.name && r.address, r.id);
-    assert.ok(r.lat > 52.3 && r.lat < 52.7 && r.lon > 13.0 && r.lon < 13.8, r.id);
+  const { cities } = await import('../config.js');
+  for (const [id, city] of Object.entries(cities)) {
+    const rooms = JSON.parse(readFileSync(new URL(`../rooms/${id}.json`, import.meta.url), 'utf8'));
+    assert.ok(Array.isArray(rooms), id);
+    assert.equal(new Set(rooms.map((r) => r.id)).size, rooms.length, id);
+    const [west, north, east, south] = city.viewbox;
+    for (const r of rooms) {
+      assert.ok(r.name && r.address, `${id}/${r.id}`);
+      assert.ok(r.lat > south && r.lat < north && r.lon > west && r.lon < east, `${id}/${r.id}`);
+    }
   }
+  assert.ok(JSON.parse(readFileSync(new URL('../rooms/berlin.json', import.meta.url), 'utf8')).length > 0);
 });
 
 test('time: messy input becomes HH:MM, nonsense is rejected', () => {
