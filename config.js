@@ -18,5 +18,9 @@ export const cities = {
   },
 };
 
+// Room reports from the form go to Moe's report worker (Cloudflare), which files them as issues in the
+// private repo moritz-poth/SchnittpunktReports (worker source: Mountpoint/worker).
+export const REPORT_URL = 'https://mountpoint-reports.moritz-poth.workers.dev/report';
+
 // The city on screen; app.js switches it.
 export const config = { cityId: 'berlin', city: cities.berlin };

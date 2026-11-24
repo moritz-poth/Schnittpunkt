@@ -1,7 +1,7 @@
-import { config, cities } from './config.js?v=555c3c134f';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=555c3c134f';
-import * as api from './services.js?v=555c3c134f';
-import { STRINGS, LANGS } from './i18n.js?v=555c3c134f';
+import { config, cities, REPORT_URL } from './config.js?v=3ada22ffd4';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=3ada22ffd4';
+import * as api from './services.js?v=3ada22ffd4';
+import { STRINGS, LANGS } from './i18n.js?v=3ada22ffd4';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 // One colour per person (by position A, B, …) for badge, map marker and route line.
@@ -19,7 +19,8 @@ const state = {
   picker: null, // null | 'date' | 'time'
   pickMonth: null, // first day of the month shown in the calendar
   timeText: null, // the time field while someone types in it
-  view: 'plan', // 'plan' | 'rooms'
+  view: 'plan', // 'plan' | 'rooms' | 'report'
+  report: null, // the report form while it is open
   selected: null, // id of the result room whose routes are on the map
   criterion: 'fair',
   results: null,
@@ -584,7 +585,9 @@ function planView() {
     el('p', { class: 'intro', text: t('intro') }),
     state.roomsError ? el('p', { class: 'error', role: 'alert', text: t('roomsLoadFailed') }) : null,
     !state.roomsError && state.rooms.length === 0 ? el('p', { class: 'hint', text: t('noRoomsYet') }) : null,
-    state.rooms.length ? el('button', { type: 'button', id: 'show-rooms', text: t('showRooms', { n: state.rooms.length }), onclick: () => showView('rooms', 'back') }) : null,
+    el('div', { class: 'row wrap' },
+      state.rooms.length ? el('button', { type: 'button', id: 'show-rooms', text: t('showRooms', { n: state.rooms.length }), onclick: () => showView('rooms', 'back') }) : null,
+      el('button', { type: 'button', id: 'open-report', text: t('report'), onclick: () => openReport() })),
     el('h2', { text: t('whoIsComing') }),
     el('p', { class: 'hint', text: t('mapHint') }),
     state.people.map(personCard),
@@ -605,7 +608,9 @@ function planView() {
 function roomsView() {
   const rooms = [...state.rooms].sort((a, b) => a.name.localeCompare(b.name, state.lang));
   return el('div', {},
-    el('button', { type: 'button', id: 'back', text: t('back'), onclick: () => { showView('plan', 'show-rooms'); homeView(true); } }),
+    el('div', { class: 'row wrap' },
+      el('button', { type: 'button', id: 'back', text: t('back'), onclick: () => { showView('plan', 'show-rooms'); homeView(true); } }),
+      el('button', { type: 'button', text: t('report'), onclick: () => openReport() })),
     el('h2', { text: `${t('roomsTitle')} (${rooms.length})` }),
     el('ul', { class: 'plain room-list' }, rooms.map((room) => el('li', {
       id: `room-${room.id}`,
@@ -615,6 +620,99 @@ function roomsView() {
       el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(room) },
         el('span', { class: 'grow' }, el('strong', { text: room.name }), el('br'), el('span', { class: 'muted', text: room.address || '' }),
           room.note ? el('span', { class: 'muted note', text: room.note }) : null))))));
+}
+
+// ---------- report a room ----------
+// Missing or outdated rooms go to the report worker, which files an issue in the private reports repo.
+
+function openReport() {
+  state.report = { type: 'missing', roomId: '', name: '', address: '', note: '', contact: '', website: '', status: null, problem: null };
+  showView('report', 'report-back');
+}
+
+async function sendReport() {
+  const r = state.report;
+  const room = state.rooms.find((x) => x.id === r.roomId);
+  r.problem = r.type === 'missing' ? (r.name.trim() ? null : 'reportNeedName') : (room ? null : 'reportNeedRoom');
+  if (r.problem) { render(); return; }
+  r.status = 'sending';
+  render();
+  const report = {
+    kind: 'problem', product: 'schnittpunkt', app: 'web', build: 'web', date: new Date().toISOString(),
+    system: {
+      city: config.city.name, type: r.type, lang: state.lang, website: r.website,
+      room: (room ? room.name : r.name.trim()).slice(0, 200),
+      address: (room && r.type === 'closed' ? room.address : r.address.trim()).slice(0, 200),
+      ...(room ? { roomId: room.id, listedAddress: room.address.slice(0, 200) } : {}),
+    },
+    results: [], log: [],
+    note: r.note.trim() || t(`type_${r.type}`),
+    ...(r.contact.trim() ? { contact: r.contact.trim().slice(0, 200) } : {}),
+  };
+  try {
+    const res = await fetch(REPORT_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(report) });
+    r.status = res.ok ? 'sent' : res.status === 429 ? 'limit' : 'error';
+  } catch {
+    r.status = 'error';
+  }
+  render();
+  document.getElementById('report-status')?.focus();
+}
+
+function reportView() {
+  const r = state.report;
+  const field = (key, label, attrs = {}) => el('label', { class: 'field' }, el('span', { text: t(label) }),
+    el(attrs.multiline ? 'textarea' : 'input', {
+      type: attrs.multiline ? null : 'text', id: `r-${key}`, value: r[key], maxlength: attrs.max || 200, rows: attrs.multiline ? 4 : null,
+      placeholder: attrs.placeholder ? t(attrs.placeholder) : null, autocomplete: attrs.autocomplete || 'off',
+      oninput: (e) => { r[key] = e.target.value; if (r.problem) { r.problem = null; render(); } },
+    }));
+  const back = el('button', { type: 'button', id: 'report-back', text: t('back'), onclick: () => { state.report = null; showView('plan', 'open-report'); } });
+  if (r.status === 'sent') {
+    return el('div', {}, back,
+      el('h2', { text: t('report') }),
+      el('p', { class: 'ok', id: 'report-status', tabindex: '-1', role: 'status', text: t('reportThanks') }),
+      el('button', { type: 'button', onclick: openReport, text: t('reportAnother') }));
+  }
+  const sorted = [...state.rooms].sort((a, b) => a.name.localeCompare(b.name, state.lang));
+  return el('form', { onsubmit: (e) => { e.preventDefault(); sendReport(); } }, back,
+    el('h2', { text: `${t('report')} · ${config.city.names?.[state.lang] ?? config.city.name}` }),
+    el('p', { class: 'intro', text: t('reportIntro') }),
+    el('fieldset', { class: 'field' }, el('legend', { text: t('reportType') }),
+      el('div', { class: 'modes', role: 'group' }, ['missing', 'wrong', 'closed'].map((type) => el('button', {
+        type: 'button', class: 'mode' + (r.type === type ? ' on' : ''), 'aria-pressed': String(r.type === type), text: t(`type_${type}`),
+        onclick: () => { r.type = type; r.problem = null; render(); },
+      })))),
+    r.type === 'missing'
+      ? [field('name', 'reportName'), field('address', 'reportAddress')]
+      : [el('label', { class: 'field' }, el('span', { text: t('reportRoom') }),
+          el('select', { id: 'r-room', onchange: (e) => { r.roomId = e.target.value; r.problem = null; render(); } },
+            el('option', { value: '', text: t('reportPick') }),
+            sorted.map((room) => el('option', { value: room.id, selected: room.id === r.roomId, text: `${room.name} – ${room.address}` })))),
+        r.type === 'wrong' ? field('address', 'reportAddress', { placeholder: 'reportAddress' }) : null],
+    field('note', 'reportNote', { multiline: true, max: 2000, placeholder: 'reportNotePlaceholder' }),
+    field('contact', 'reportContact', { placeholder: 'reportContactPlaceholder', autocomplete: 'email' }),
+    // Honeypot for bots: hidden from people and from screen readers.
+    el('input', { class: 'hp', type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true', value: r.website, oninput: (e) => { r.website = e.target.value; } }),
+    r.problem ? el('p', { class: 'error', role: 'alert', text: t(r.problem) }) : null,
+    r.status === 'error' || r.status === 'limit'
+      ? el('p', { class: 'error', id: 'report-status', tabindex: '-1', role: 'alert', text: t(r.status === 'limit' ? 'reportLimit' : 'reportFailed') }) : null,
+    el('button', { type: 'submit', class: 'primary', disabled: r.status === 'sending', text: t(r.status === 'sending' ? 'reportSending' : 'reportSend') }),
+    el('p', { class: 'hint', text: t('reportPrivacy') }));
+}
+
+// Shown on every visit (nothing is stored, so it cannot remember that it was closed).
+function showNotice() {
+  const dlg = el('dialog', { class: 'notice', 'aria-labelledby': 'notice-title' },
+    el('h2', { id: 'notice-title', text: t('noticeTitle') }),
+    el('p', { text: t('noticeText1') }),
+    el('p', { text: t('noticeText2') }),
+    el('div', { class: 'dialog-actions' },
+      el('button', { type: 'button', text: t('report'), onclick: () => { dlg.close(); openReport(); } }),
+      el('button', { type: 'button', class: 'primary inline', autofocus: true, text: t('noticeClose'), onclick: () => dlg.close() })));
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 function showView(view, focusId) {
@@ -646,7 +744,7 @@ function render() {
   const active = document.activeElement;
   const focusId = active?.id;
   const caret = active && 'selectionStart' in active ? [active.selectionStart, active.selectionEnd] : null;
-  panel.replaceChildren(state.view === 'rooms' ? roomsView() : planView());
+  panel.replaceChildren(state.view === 'rooms' ? roomsView() : state.view === 'report' && state.report ? reportView() : planView());
   const again = focusId && document.getElementById(focusId);
   if (again) {
     again.focus();
@@ -688,3 +786,4 @@ document.getElementById('city').addEventListener('change', (e) => {
 
 const fromHash = location.hash.slice(1);
 setCity(cities[fromHash] ? fromHash : 'berlin', false);
+showNotice();

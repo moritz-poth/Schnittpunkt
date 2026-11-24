@@ -76,10 +76,20 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 .primary.inline { width: auto; margin-top: 0; min-height: 28px; }
 .icon { padding: 0 8px; font-size: 16px; line-height: 1; }
 .add { margin-top: 4px; }
-#show-rooms { margin-bottom: 8px; }
 .leaflet-tooltip .note { display: block; max-width: 260px; white-space: normal; margin-top: 4px; font-style: italic; }
 .room-list li { border-bottom: 1px solid var(--card-line); padding: 8px; margin: 0 -8px; border-radius: 6px; }
 .room-list .note { display: block; margin-top: 0.75em; } /* half a line between address and comment */
+.row.wrap { flex-wrap: wrap; }
+.field { display: block; margin: 12px 0; border: 0; padding: 0; }
+.field > span, .field > legend { display: block; margin-bottom: 4px; color: var(--muted); padding: 0; }
+.field input, .field select, .field textarea { width: 100%; background: var(--bg); }
+textarea { font: inherit; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; resize: vertical; }
+.hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; }
+dialog.notice { max-width: 480px; width: calc(100% - 32px); background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; box-shadow: 0 12px 40px #0007; }
+dialog.notice h2 { margin-top: 0; }
+dialog.notice p { color: var(--muted); }
+dialog::backdrop { background: #000a; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
 .room-list li.hover { background: var(--sel); }
 
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }

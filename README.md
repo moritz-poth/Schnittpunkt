@@ -8,6 +8,7 @@ If you use Schnittpunkt and like it, I would be glad if you [bought me a coffee]
 
 - No sign-in, nothing stored. Everything happens in your browser.
 - The addresses you enter go only to the map and routing services: [Photon](https://photon.komoot.io) (address search), [OSRM by FOSSGIS](https://routing.openstreetmap.de) (car, bike, on foot), [Transitous](https://transitous.org) (public transport).
+- Only what someone sends with “Report a room” (missing or outdated rooms) is kept: it becomes an issue in a private repository. IP addresses are not stored.
 - English, German, French and Spanish.
 
 ## Rooms
