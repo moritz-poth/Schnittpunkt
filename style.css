@@ -70,6 +70,9 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 .primary.inline { width: auto; margin-top: 0; min-height: 28px; }
 .icon { padding: 0 8px; font-size: 16px; line-height: 1; }
 .add { margin-top: 4px; }
+.link-button { border: 0; background: transparent; padding: 0; color: var(--accent); text-decoration: underline; min-height: 0; margin-bottom: 8px; }
+.room-list li { border-bottom: 1px solid var(--card-line); padding: 8px; margin: 0 -8px; border-radius: 6px; }
+.room-list li.hover { background: var(--sel); }
 
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .row.end { justify-content: flex-end; flex-wrap: wrap; }
@@ -114,6 +117,7 @@ details summary { cursor: pointer; }
 .m-room { background: var(--accent); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #0006; }
 .m-room.out { opacity: 0.35; }
 .m-room.ranked { background: #6a7076; }
+.m-room.hover { background: #ff9f0a; box-shadow: 0 0 0 5px #ff9f0a66; z-index: 10000 !important; }
 .m-room.top { display: grid !important; place-items: center; color: #fff; font-weight: 700; background: #1a7f37; font-size: 13px; }
 .m-person { display: grid !important; place-items: center; background: #17191b; color: #fff; border: 2px solid #fff; border-radius: 4px; font-weight: 700; font-size: 12px; box-shadow: 0 0 0 1px #0006; }
 :root.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
