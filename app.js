@@ -1,7 +1,7 @@
-import { config, cities } from './config.js?v=c0e4e6413a';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=c0e4e6413a';
-import * as api from './services.js?v=c0e4e6413a';
-import { STRINGS, LANGS } from './i18n.js?v=c0e4e6413a';
+import { config, cities } from './config.js?v=61eef355e9';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=61eef355e9';
+import * as api from './services.js?v=61eef355e9';
+import { STRINGS, LANGS } from './i18n.js?v=61eef355e9';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 
@@ -620,7 +620,9 @@ document.getElementById('theme').addEventListener('click', () => {
 function setCity(id, animate) {
   config.cityId = id;
   config.city = cities[id];
-  Object.assign(state, { rooms: [], roomsError: false });
+  // Start points from another city make no sense here: start over with two empty people.
+  for (const p of state.people) { clearTimeout(p.timer); p.ctrl?.abort(); }
+  Object.assign(state, { rooms: [], roomsError: false, people: [newPerson(), newPerson()] });
   invalidate();
   render();
   api.loadRooms(id)
@@ -634,6 +636,5 @@ document.getElementById('city').addEventListener('change', (e) => {
   setCity(e.target.value, true);
 });
 
-state.people.push(newPerson(), newPerson());
 const fromHash = location.hash.slice(1);
 setCity(cities[fromHash] ? fromHash : 'berlin', false);
