@@ -1,4 +1,4 @@
-// All network access: geocoding (Nominatim), street routing (OSRM), public transport (Transitous).
+// All network access: geocoding (Photon), street routing (OSRM), public transport (Transitous).
 import { config } from './config.js';
 
 const OSRM = {
@@ -14,29 +14,42 @@ async function getJson(url, options = {}) {
   return res.json();
 }
 
-// Nominatim allows at most one request per second and forbids search-as-you-type.
-let lastGeocode = 0;
-export async function geocode(query, lang) {
-  // Reserve the slot before waiting, so parallel calls queue up instead of firing together.
-  const at = Math.max(Date.now(), lastGeocode + 1100);
-  lastGeocode = at;
-  if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
+// Photon (komoot, OpenStreetMap data) allows search-as-you-type; callers debounce and abort stale requests.
+const PHOTON_LANGS = ['de', 'en', 'fr'];
+export async function suggest(query, lang, signal) {
   const c = config.city;
+  const [west, north, east, south] = c.viewbox;
   const params = new URLSearchParams({
-    q: query, format: 'jsonv2', limit: '5', addressdetails: '1',
-    viewbox: c.viewbox.join(','), countrycodes: c.countrycodes, 'accept-language': lang,
+    q: query, limit: '6', lang: PHOTON_LANGS.includes(lang) ? lang : 'default',
+    bbox: [west, south, east, north].join(','), lat: String(c.center[0]), lon: String(c.center[1]),
   });
-  const list = await getJson(`https://nominatim.openstreetmap.org/search?${params}`);
-  return list.map((p) => ({ label: shortAddress(p), full: p.display_name, lat: Number(p.lat), lon: Number(p.lon) }));
+  const data = await getJson(`https://photon.komoot.io/api/?${params}`, { signal });
+  const seen = new Set();
+  const out = [];
+  for (const f of data.features || []) {
+    const p = f.properties || {};
+    if (p.countrycode && p.countrycode.toLowerCase() !== c.countrycodes) continue;
+    const key = `${p.osm_type}${p.osm_id}`;
+    if (seen.has(key)) continue; // Photon lists one place once per tag (hotel, club, …)
+    seen.add(key);
+    const [lon, lat] = f.geometry.coordinates;
+    out.push({ label: shortAddress(p), full: fullLabel(p), lat, lon });
+  }
+  return out;
 }
 
-// "Torstraße 1, 10119 Berlin" instead of Nominatim's long display name.
+// "Torstraße 1, 10119 Berlin".
 function shortAddress(p) {
-  const a = p.address || {};
-  const street = [a.road || a.pedestrian || a.square, a.house_number].filter(Boolean).join(' ');
-  const place = [a.postcode, a.city || a.town || a.village || a.suburb].filter(Boolean).join(' ');
-  const short = [street, place].filter(Boolean).join(', ');
-  return street ? short : p.display_name;
+  const street = [p.street, p.housenumber].filter(Boolean).join(' ');
+  const place = [p.postcode, p.city || p.district || p.locality].filter(Boolean).join(' ');
+  return [street || p.name, place].filter(Boolean).join(', ');
+}
+
+// With the place name and district, so similar streets can be told apart in the list.
+function fullLabel(p) {
+  const short = shortAddress(p);
+  const extra = [p.street && p.name, p.district && p.district !== p.city ? p.district : null].filter(Boolean);
+  return extra.length ? `${short} (${extra.join(', ')})` : short;
 }
 
 // Minutes from one person to every room (null = no route). One request per person.

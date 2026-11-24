@@ -66,7 +66,7 @@ function invalidate() {
 
 
 function newPerson() {
-  return { id: newId(), name: '', query: '', lat: null, lon: null, address: '', mode: 'transit', results: null, searching: false };
+  return { id: newId(), name: '', query: '', lat: null, lon: null, address: '', mode: 'transit', results: null, active: -1, searching: false };
 }
 
 // ---------- map ----------
@@ -120,35 +120,74 @@ function fitResults() {
 
 // ---------- plan view ----------
 
-function addressSearch(target, onPick) {
-  const query = target.query.trim();
-  if (!query || target.searching) return;
-  const coords = parseCoords(query);
-  if (coords) {
-    onPick({ ...coords, label: query.startsWith('http') ? `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}` : query });
+// Suggestions while typing: wait for a short pause, drop answers to older text.
+function scheduleSuggest(p) {
+  clearTimeout(p.timer);
+  p.ctrl?.abort();
+  const query = p.query.trim();
+  if (query.length < 3 || parseCoords(query)) {
+    p.results = null;
+    p.searching = false;
+    render(); // the find button may change state
     return;
   }
-  target.searching = true;
-  target.results = null;
-  render();
-  api.geocode(query, state.lang)
-    .then((list) => { target.results = list; })
-    .catch(() => { target.results = 'error'; })
-    .finally(() => { target.searching = false; render(); });
+  p.timer = setTimeout(() => {
+    const ctrl = new AbortController();
+    p.ctrl = ctrl;
+    p.searching = !p.results;
+    if (p.searching) render();
+    api.suggest(query, state.lang, ctrl.signal)
+      .then((list) => { p.results = list; p.active = -1; })
+      .catch(() => { if (!ctrl.signal.aborted) p.results = 'error'; })
+      .finally(() => { if (!ctrl.signal.aborted) { p.searching = false; render(); } });
+  }, 300);
 }
 
-function resultList(target, onPick) {
-  if (target.searching) return el('p', { class: 'hint', role: 'status', text: t('searching') });
-  if (target.results === 'error') return el('p', { class: 'error', role: 'alert', text: t('searchFailed') });
-  if (!target.results) return null;
-  if (!target.results.length) return el('p', { class: 'hint', role: 'status', text: t('noMatch') });
-  return el('ul', { class: 'choices', 'aria-label': t('searchResults') },
-    target.results.map((r) => el('li', {}, el('button', { type: 'button', class: 'choice', onclick: () => onPick(r), text: r.full || r.label }))));
+// The typed text as a place: coordinates or a Google Maps link directly, otherwise the first suggestion.
+async function resolve(p) {
+  const query = p.query.trim();
+  const coords = parseCoords(query);
+  if (coords) return { ...coords, label: query.startsWith('http') ? `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}` : query };
+  const list = Array.isArray(p.results) && p.results.length ? p.results : await api.suggest(query, state.lang);
+  if (!list.length) p.results = list;
+  return list[0] ?? null;
+}
+
+function resultList(p, onPick) {
+  if (p.searching) return el('p', { class: 'hint', role: 'status', text: t('searching') });
+  if (p.results === 'error') return el('p', { class: 'error', role: 'alert', text: t('searchFailed') });
+  if (!p.results) return null;
+  if (!p.results.length) return el('p', { class: 'hint', role: 'status', text: t('noMatch') });
+  return el('ul', { class: 'choices', id: `l-${p.id}`, role: 'listbox', 'aria-label': t('searchResults') },
+    p.results.map((r, i) => el('li', {
+      id: `o-${p.id}-${i}`, role: 'option', class: 'choice' + (i === p.active ? ' on' : ''), 'aria-selected': String(i === p.active),
+      onmousedown: (e) => e.preventDefault(), // keep focus in the field
+      onclick: () => onPick(r), text: r.full || r.label,
+    })));
+}
+
+function addressKey(e, p, pick) {
+  const list = Array.isArray(p.results) ? p.results : [];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!list.length) return;
+    e.preventDefault();
+    p.active = (p.active + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+    render();
+  } else if (e.key === 'Escape' && p.results) {
+    p.results = null;
+    render();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (list.length) pick(list[Math.max(p.active, 0)]);
+    else if (p.query.trim()) resolve(p).then((r) => (r ? pick(r) : render())).catch(() => { p.results = 'error'; render(); });
+  }
 }
 
 function personCard(p, i) {
   const pick = (r) => {
-    Object.assign(p, { lat: r.lat, lon: r.lon, address: r.label, results: null });
+    clearTimeout(p.timer);
+    p.ctrl?.abort();
+    Object.assign(p, { lat: r.lat, lon: r.lon, address: r.label, query: r.label, results: null, searching: false, active: -1 });
     invalidate();
     render();
   };
@@ -158,9 +197,19 @@ function personCard(p, i) {
       el('span', { class: 'badge', 'aria-hidden': 'true', text: letter(i) }),
       el('input', { class: 'grow', id: `n-${p.id}`, type: 'text', value: p.name, placeholder: t('namePlaceholder'), 'aria-label': t('name'), oninput: (e) => { p.name = e.target.value; } }),
       el('button', { type: 'button', class: 'icon', 'aria-label': t('removePerson'), title: t('removePerson'), text: '×', onclick: () => { state.people.splice(i, 1); invalidate(); render(); } })),
-    el('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); addressSearch(p, pick); } },
-      el('input', { class: 'grow', id, type: 'text', value: p.query, placeholder: t('addressPlaceholder'), 'aria-label': t('address'), oninput: (e) => { p.query = e.target.value; } }),
-      el('button', { type: 'submit', text: t('search') })),
+    el('div', { class: 'row combo' },
+      el('input', {
+        class: 'grow', id, type: 'text', value: p.query, placeholder: t('addressPlaceholder'), 'aria-label': t('address'), autocomplete: 'off',
+        role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': String(Array.isArray(p.results) && p.results.length > 0),
+        'aria-controls': `l-${p.id}`, 'aria-activedescendant': p.active >= 0 ? `o-${p.id}-${p.active}` : null,
+        oninput: (e) => {
+          p.query = e.target.value;
+          // The text no longer matches the picked place.
+          if (p.lat != null) { Object.assign(p, { lat: null, lon: null, address: '' }); invalidate(); render(); }
+          scheduleSuggest(p);
+        },
+        onkeydown: (e) => addressKey(e, p, pick),
+      })),
     resultList(p, pick),
     p.lat != null && !p.results ? el('p', { class: 'picked' }, el('span', { class: 'ok', 'aria-hidden': 'true', text: '✓ ' }), p.address) : null,
     el('div', { class: 'modes', role: 'radiogroup', 'aria-label': t('mode') },
@@ -170,6 +219,17 @@ function personCard(p, i) {
 }
 
 async function calculate() {
+  // Typed but not picked: take the best match, so nobody drops out silently.
+  const open = state.people.filter((p) => p.lat == null && p.query.trim());
+  if (open.length) {
+    state.resolving = true;
+    render();
+    await Promise.all(open.map((p) => resolve(p)
+      .then((r) => { if (r) Object.assign(p, { lat: r.lat, lon: r.lon, address: r.label, query: r.label, results: null }); })
+      .catch(() => { p.results = 'error'; })));
+    state.resolving = false;
+    if (open.some((p) => p.lat == null)) { render(); return; }
+  }
   const people = state.people.filter((p) => p.lat != null).map((p, i) => ({ ...p }));
   const rooms = pickCandidates(state.rooms, people);
   const arrive = new Date(state.arrive);
@@ -248,7 +308,7 @@ function resultsView() {
 }
 
 function planView() {
-  const ready = state.people.some((p) => p.lat != null) && state.rooms.length > 0 && !Number.isNaN(new Date(state.arrive).getTime());
+  const ready = !state.resolving && state.people.some((p) => p.lat != null || p.query.trim()) && state.rooms.length > 0 && !Number.isNaN(new Date(state.arrive).getTime());
   const usesTransit = state.people.some((p) => p.mode === 'transit');
   return el('div', {},
     el('p', { class: 'intro', text: t('intro') }),

@@ -11,7 +11,7 @@ Static website on GitHub Pages (moritz-poth.github.io/Schnittpunkt): ranks editi
 
 ## Layout
 - `core.js` pure logic (ranking, pre-filter, Maps link parsing) – tested in `test/` (also checks rooms.json).
-- `services.js` all network calls (Nominatim ≤ 1 req/s and no search-as-you-type, OSRM table per person, Transitous).
+- `services.js` all network calls (Photon address suggestions while typing – debounced 300 ms, stale requests aborted; OSRM table per person, Transitous).
 - `app.js` UI; DOM only via `el()` with textContent. `i18n.js` strings en/de/fr/es.
 - Pre-filter: ≤ 15 rooms are all routed, otherwise best 10 by estimated longest trip ∪ best 10 by estimated total.
 
