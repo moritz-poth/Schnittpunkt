@@ -106,9 +106,8 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 
 .modes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .mode { margin: 0; display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; color: var(--muted); }
-.mode input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .mode.on { background: var(--sel); color: var(--text); border-color: var(--text); font-weight: 700; }
-.mode:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mode { min-height: 0; }
 
 .choices, .plain, .ranking, .chips { list-style: none; margin: 0; padding: 0; }
 .choices[role="listbox"] { border: 1px solid var(--line); border-radius: 6px; margin-top: 4px; overflow: hidden; }

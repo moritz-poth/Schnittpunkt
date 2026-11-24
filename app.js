@@ -298,6 +298,15 @@ function scrollTimes() {
   document.querySelector('#time-list .on')?.scrollIntoView({ block: 'center' });
 }
 
+// Tab on the last control of the form goes back to the first person's name (the × buttons are skipped).
+document.getElementById('panel').addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || e.shiftKey || state.view !== 'plan') return;
+  const stops = [...e.currentTarget.querySelectorAll('button, input, [tabindex]')]
+    .filter((n) => !n.disabled && n.tabIndex >= 0 && n.offsetParent !== null);
+  const first = state.people[0] && document.getElementById(`n-${state.people[0].id}`);
+  if (first && e.target === stops.at(-1)) { e.preventDefault(); first.focus(); }
+});
+
 // A click or focus outside the date and time controls closes their pop-up.
 for (const type of ['mousedown', 'focusin']) {
   document.addEventListener(type, (e) => {
@@ -383,7 +392,7 @@ function personCard(p, i) {
     el('div', { class: 'row' },
       el('span', { class: 'badge', 'aria-hidden': 'true', text: letter(i) }),
       el('input', { class: 'grow', id: `n-${p.id}`, type: 'text', value: p.name, placeholder: t('namePlaceholder'), 'aria-label': t('name'), oninput: (e) => { p.name = e.target.value; } }),
-      el('button', { type: 'button', class: 'icon', 'aria-label': t('removePerson'), title: t('removePerson'), text: '×', onclick: () => { state.people.splice(i, 1); invalidate(); render(); } })),
+      el('button', { type: 'button', class: 'icon', tabindex: '-1', 'aria-label': t('removePerson'), title: t('removePerson'), text: '×', onclick: () => { state.people.splice(i, 1); invalidate(); render(); } })),
     el('div', { class: 'row combo' },
       el('input', {
         class: 'grow', id, type: 'text', value: p.query, placeholder: t('addressPlaceholder'), 'aria-label': t('address'), autocomplete: 'off',
@@ -392,17 +401,20 @@ function personCard(p, i) {
         oninput: (e) => {
           p.query = e.target.value;
           // The text no longer matches the picked place.
-          if (p.lat != null) { Object.assign(p, { lat: null, lon: null, address: '' }); invalidate(); render(); }
+          if (p.lat != null) { Object.assign(p, { lat: null, lon: null, address: '' }); invalidate(); }
+          render(); // the find button may change state
           scheduleSuggest(p);
         },
         onkeydown: (e) => addressKey(e, p, pick),
       })),
     resultList(p, pick),
     p.lat != null && !p.results ? el('p', { class: 'picked' }, el('span', { class: 'ok', 'aria-hidden': 'true', text: '✓ ' }), p.address) : null,
-    el('div', { class: 'modes', role: 'radiogroup', 'aria-label': t('mode') },
-      MODES.map((m) => el('label', { class: 'mode' + (p.mode === m ? ' on' : '') },
-        el('input', { type: 'radio', name: `mode-${p.id}`, value: m, checked: p.mode === m, onchange: () => { p.mode = m; invalidate(); render(); } }),
-        el('span', { 'aria-hidden': 'true', text: MODE_ICON[m] }), ' ', t(`mode_${m}`)))));
+    // Buttons, not radios: every mode is its own Tab stop and Space picks it (user request 2026-11-24).
+    el('div', { class: 'modes', role: 'group', 'aria-label': t('mode') },
+      MODES.map((m) => el('button', {
+        type: 'button', id: `m-${p.id}-${m}`, class: 'mode' + (p.mode === m ? ' on' : ''), 'aria-pressed': String(p.mode === m),
+        onclick: () => { if (p.mode !== m) { p.mode = m; invalidate(); render(); } },
+      }, el('span', { 'aria-hidden': 'true', text: MODE_ICON[m] }), ' ', t(`mode_${m}`)))));
 }
 
 async function calculate() {
