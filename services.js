@@ -38,6 +38,14 @@ export async function suggest(query, lang, signal) {
   return out;
 }
 
+// Address of a point on the map ("Torstraße 1, 10119 Berlin"), or null.
+export async function reverse(lat, lon, lang) {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), limit: '1', lang: PHOTON_LANGS.includes(lang) ? lang : 'default' });
+  const data = await getJson(`https://photon.komoot.io/reverse?${params}`);
+  const p = data.features?.[0]?.properties;
+  return p ? shortAddress(p) : null;
+}
+
 // "Torstraße 1, 10119 Berlin".
 function shortAddress(p) {
   const street = [p.street, p.housenumber].filter(Boolean).join(' ');

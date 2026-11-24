@@ -82,7 +82,7 @@ function newPerson() {
 
 // ---------- map ----------
 
-const map = L.map('map', { zoomControl: true }).setView(config.city.center, config.city.zoom);
+const map = L.map('map', { zoomControl: true, doubleClickZoom: false }).setView(config.city.center, config.city.zoom);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -132,6 +132,25 @@ function homeView(animate) {
   if (animate) map.flyToBounds(bounds, { padding: [30, 30], duration: 0.6 });
   else map.fitBounds(bounds, { padding: [30, 30] });
 }
+
+// Double-click on the map: the first empty person (A, then B, …) or a new one starts there.
+map.on('dblclick', ({ latlng }) => {
+  const { lat, lng: lon } = latlng;
+  let p = state.people.find((q) => q.lat == null && !q.query.trim());
+  if (!p) { p = newPerson(); state.people.push(p); }
+  clearTimeout(p.timer);
+  p.ctrl?.abort();
+  const label = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  Object.assign(p, { lat, lon, address: label, query: label, results: null, searching: false });
+  state.view = 'plan';
+  invalidate();
+  render();
+  document.getElementById(`p-${p.id}`)?.scrollIntoView({ block: 'nearest' });
+  // Coordinates stay as clicked; the address is only the readable name.
+  api.reverse(lat, lon, state.lang)
+    .then((name) => { if (name && p.lat === lat && p.lon === lon) { p.address = name; p.query = name; render(); } })
+    .catch(() => {});
+});
 
 function focusRoom(room) {
   // Only one room's info at a time.
@@ -515,6 +534,7 @@ function planView() {
     !state.roomsError && state.rooms.length === 0 ? el('p', { class: 'hint', text: t('noRoomsYet') }) : null,
     state.rooms.length ? el('button', { type: 'button', id: 'show-rooms', text: t('showRooms', { n: state.rooms.length }), onclick: () => showView('rooms', 'back') }) : null,
     el('h2', { text: t('whoIsComing') }),
+    el('p', { class: 'hint', text: t('mapHint') }),
     state.people.map(personCard),
     el('button', { type: 'button', class: 'add', text: `+ ${t('addPerson')}`, onclick: () => { state.people.push(newPerson()); render(); document.getElementById(`p-${state.people.at(-1).id}`)?.focus(); } }),
     arrivalPicker(),
