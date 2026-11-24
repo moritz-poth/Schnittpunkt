@@ -93,7 +93,8 @@ function drawMap() {
     const cls = r ? (r <= 3 ? 'm-room top' : 'm-room ranked') : (state.results ? 'm-room out' : 'm-room');
     const icon = L.divIcon({ className: cls, html: r && r <= 3 ? String(r) : '', iconSize: r && r <= 3 ? [26, 26] : [14, 14] });
     const marker = L.marker([room.lat, room.lon], { icon, keyboard: true, title: room.name, alt: room.name });
-    marker.bindTooltip(el('span', {}, el('strong', { text: room.name }), el('br'), room.address || ''));
+    marker.bindTooltip(el('span', {}, el('strong', { text: room.name }), el('br'), room.address || '',
+      room.note ? el('span', { class: 'note', text: room.note }) : null));
     marker.on('mouseover', () => hoverRoom(room.id, true)).on('mouseout', () => hoverRoom(room.id, false));
     marker.addTo(roomLayer);
     markers.set(room.id, marker);
@@ -113,7 +114,18 @@ function hoverRoom(id, on) {
   document.getElementById(`room-${id}`)?.classList.toggle('hover', on);
 }
 
+// Start view: every room visible with a little room around it.
+function homeView(animate) {
+  for (const m of markers.values()) m.closeTooltip();
+  if (!state.rooms.length) return;
+  const bounds = L.latLngBounds(state.rooms.map((r) => [r.lat, r.lon]));
+  if (animate) map.flyToBounds(bounds, { padding: [30, 30], duration: 0.6 });
+  else map.fitBounds(bounds, { padding: [30, 30] });
+}
+
 function focusRoom(room) {
+  // Only one room's info at a time.
+  for (const [id, m] of markers) if (id !== room.id) m.closeTooltip();
   map.flyTo([room.lat, room.lon], Math.max(map.getZoom(), 14), { duration: 0.6 });
   markers.get(room.id)?.openTooltip();
 }
@@ -322,7 +334,7 @@ function planView() {
     el('p', { class: 'intro', text: t('intro') }),
     state.roomsError ? el('p', { class: 'error', role: 'alert', text: t('roomsLoadFailed') }) : null,
     !state.roomsError && state.rooms.length === 0 ? el('p', { class: 'hint', text: t('noRoomsYet') }) : null,
-    state.rooms.length ? el('button', { type: 'button', class: 'link-button', id: 'show-rooms', text: t('showRooms', { n: state.rooms.length }), onclick: () => showView('rooms', 'back') }) : null,
+    state.rooms.length ? el('button', { type: 'button', id: 'show-rooms', text: t('showRooms', { n: state.rooms.length }), onclick: () => showView('rooms', 'back') }) : null,
     el('h2', { text: t('whoIsComing') }),
     state.people.map(personCard),
     el('button', { type: 'button', class: 'add', text: `+ ${t('addPerson')}`, onclick: () => { state.people.push(newPerson()); render(); document.getElementById(`p-${state.people.at(-1).id}`)?.focus(); } }),
@@ -344,7 +356,7 @@ function planView() {
 function roomsView() {
   const rooms = [...state.rooms].sort((a, b) => a.name.localeCompare(b.name, state.lang));
   return el('div', {},
-    el('button', { type: 'button', id: 'back', text: t('back'), onclick: () => showView('plan', 'show-rooms') }),
+    el('button', { type: 'button', id: 'back', text: t('back'), onclick: () => { showView('plan', 'show-rooms'); homeView(true); } }),
     el('h2', { text: `${t('roomsTitle')} (${rooms.length})` }),
     el('ul', { class: 'plain room-list' }, rooms.map((room) => el('li', {
       id: `room-${room.id}`,
@@ -352,7 +364,8 @@ function roomsView() {
       onfocusin: () => hoverRoom(room.id, true), onfocusout: () => hoverRoom(room.id, false),
     },
       el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(room) },
-        el('span', { class: 'grow' }, el('strong', { text: room.name }), el('br'), el('span', { class: 'muted', text: room.address || '' })))))));
+        el('span', { class: 'grow' }, el('strong', { text: room.name }), el('br'), el('span', { class: 'muted', text: room.address || '' }),
+          room.note ? el('span', { class: 'muted note' }, el('br'), room.note) : null))))));
 }
 
 function showView(view, focusId) {
@@ -407,4 +420,4 @@ render();
 api.loadRooms()
   .then((rooms) => { state.rooms = rooms; })
   .catch(() => { state.roomsError = true; })
-  .finally(render);
+  .finally(() => { render(); homeView(false); });
