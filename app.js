@@ -1,7 +1,7 @@
-import { config, cities } from './config.js?v=61eef355e9';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=61eef355e9';
-import * as api from './services.js?v=61eef355e9';
-import { STRINGS, LANGS } from './i18n.js?v=61eef355e9';
+import { config, cities } from './config.js?v=5f42c49c83';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=5f42c49c83';
+import * as api from './services.js?v=5f42c49c83';
+import { STRINGS, LANGS } from './i18n.js?v=5f42c49c83';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
 
@@ -142,16 +142,20 @@ map.on('dblclick', ({ latlng }) => {
   if (!p) { p = newPerson(); state.people.push(p); }
   clearTimeout(p.timer);
   p.ctrl?.abort();
-  const label = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-  Object.assign(p, { lat, lon, address: label, query: label, results: null, searching: false });
+  // The field says "finding address" until Photon answers (it serves about one request per second).
+  Object.assign(p, { lat, lon, address: '', query: '', results: null, searching: false, reversing: true });
   state.view = 'plan';
   invalidate();
   render();
   document.getElementById(`p-${p.id}`)?.scrollIntoView({ block: 'nearest' });
   // Coordinates stay as clicked; the address is only the readable name.
-  api.reverse(lat, lon, state.lang)
-    .then((name) => { if (name && p.lat === lat && p.lon === lon) { p.address = name; p.query = name; render(); } })
-    .catch(() => {});
+  const done = (name) => {
+    p.reversing = false;
+    if (p.lat !== lat || p.lon !== lon) return; // changed meanwhile
+    p.address = p.query = name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    render();
+  };
+  api.reverse(lat, lon, state.lang).then(done, () => done(null));
 });
 
 function focusRoom(room) {
@@ -416,7 +420,7 @@ function personCard(p, i) {
       el('button', { type: 'button', class: 'icon', tabindex: '-1', 'aria-label': t('removePerson'), title: t('removePerson'), text: '×', onclick: () => { state.people.splice(i, 1); invalidate(); render(); } })),
     el('div', { class: 'row combo' },
       el('input', {
-        class: 'grow', id, type: 'text', value: p.query, placeholder: t('addressPlaceholder'), 'aria-label': t('address'), autocomplete: 'off',
+        class: 'grow', id, type: 'text', value: p.query, placeholder: t(p.reversing ? 'findingAddress' : 'addressPlaceholder'), 'aria-label': t('address'), autocomplete: 'off',
         role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': String(Array.isArray(p.results) && p.results.length > 0),
         'aria-controls': `l-${p.id}`, 'aria-activedescendant': p.active >= 0 ? `o-${p.id}-${p.active}` : null,
         oninput: (e) => {
@@ -429,7 +433,7 @@ function personCard(p, i) {
         onkeydown: (e) => addressKey(e, p, pick),
       })),
     resultList(p, pick),
-    p.lat != null && !p.results ? el('p', { class: 'picked' }, el('span', { class: 'ok', 'aria-hidden': 'true', text: '✓ ' }), p.address) : null,
+    p.lat != null && p.address && !p.results ? el('p', { class: 'picked' }, el('span', { class: 'ok', 'aria-hidden': 'true', text: '✓ ' }), p.address) : null,
     // Buttons, not radios: every mode is its own Tab stop and Space picks it (user request 2026-11-24).
     el('div', { class: 'modes', role: 'group', 'aria-label': t('mode') },
       MODES.map((m) => el('button', {
