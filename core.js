@@ -90,3 +90,29 @@ export function monthGrid(year, month) {
   const offset = (new Date(year, month, 1).getDay() + 6) % 7;
   return Array.from({ length: 42 }, (_, i) => new Date(year, month, 1 - offset + i));
 }
+
+// Decodes an encoded polyline (Google format; Transitous uses precision 7) into [[lat, lon], …].
+export function decodePolyline(str, precision = 5) {
+  const factor = 10 ** precision;
+  const out = [];
+  let lat = 0;
+  let lon = 0;
+  let i = 0;
+  const next = () => {
+    let result = 0;
+    let shift = 0;
+    let b;
+    do {
+      b = str.charCodeAt(i++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    return result & 1 ? ~(result >> 1) : result >> 1;
+  };
+  while (i < str.length) {
+    lat += next();
+    lon += next();
+    out.push([lat / factor, lon / factor]);
+  }
+  return out;
+}

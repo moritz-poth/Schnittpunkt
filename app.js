@@ -1,9 +1,13 @@
-import { config, cities } from './config.js?v=5f42c49c83';
-import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=5f42c49c83';
-import * as api from './services.js?v=5f42c49c83';
-import { STRINGS, LANGS } from './i18n.js?v=5f42c49c83';
+import { config, cities } from './config.js?v=555c3c134f';
+import { MODES, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, newId } from './core.js?v=555c3c134f';
+import * as api from './services.js?v=555c3c134f';
+import { STRINGS, LANGS } from './i18n.js?v=555c3c134f';
 
 const MODE_ICON = { transit: '🚇', bike: '🚲', car: '🚗', walk: '🚶' };
+// One colour per person (by position A, B, …) for badge, map marker and route line.
+const PERSON_COLORS = ['#ff9f0a', '#bf5af2', '#30d158', '#ff375f', '#64d2ff', '#ffd60a', '#ac8e68', '#5e5ce6'];
+const personColor = (i) => PERSON_COLORS[i % PERSON_COLORS.length];
+const badgeStyle = (i) => `background:${personColor(i)};color:#17191b`;
 
 const state = {
   lang: STRINGS[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'de', // German audience first
@@ -16,6 +20,7 @@ const state = {
   pickMonth: null, // first day of the month shown in the calendar
   timeText: null, // the time field while someone types in it
   view: 'plan', // 'plan' | 'rooms'
+  selected: null, // id of the result room whose routes are on the map
   criterion: 'fair',
   results: null,
   progress: null, // { done, total, ctrl }
@@ -71,6 +76,7 @@ function defaultArrival() {
 function invalidate() {
   state.results = null;
   state.progress?.ctrl.abort();
+  clearRoutes();
 }
 
 
@@ -88,6 +94,9 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById('map'));
 const roomLayer = L.layerGroup().addTo(map);
 const peopleLayer = L.layerGroup().addTo(map);
+const routeLayer = L.layerGroup().addTo(map);
+const routeCache = new Map(); // "roomId|personIndex" -> shape, for the current results only
+let routeToken = 0;
 const markers = new Map();
 
 function drawMap() {
@@ -110,9 +119,10 @@ function drawMap() {
   state.people.forEach((p, i) => {
     if (p.lat == null) return;
     const icon = L.divIcon({ className: 'm-person', html: letter(i), iconSize: [24, 24] });
-    L.marker([p.lat, p.lon], { icon, title: p.name || letter(i), alt: p.name || letter(i) })
+    const marker = L.marker([p.lat, p.lon], { icon, title: p.name || letter(i), alt: p.name || letter(i) })
       .bindTooltip(el('span', { text: `${letter(i)} ${p.name}`.trim() }))
       .addTo(peopleLayer);
+    marker.getElement()?.setAttribute('style', `${marker.getElement().getAttribute('style') || ''};${badgeStyle(i)}`);
   });
 }
 
@@ -157,6 +167,39 @@ map.on('dblclick', ({ latlng }) => {
   };
   api.reverse(lat, lon, state.lang).then(done, () => done(null));
 });
+
+function clearRoutes() {
+  routeToken++;
+  state.selected = null;
+  routeLayer.clearLayers();
+  routeCache.clear();
+}
+
+// Click on a result: that room's routes for every person, nothing else.
+async function showRoutes(row) {
+  const res = state.results;
+  const room = row.room;
+  const token = ++routeToken;
+  state.selected = room.id;
+  routeLayer.clearLayers();
+  render();
+  for (const [id, m] of markers) if (id !== room.id) m.closeTooltip();
+  markers.get(room.id)?.openTooltip();
+  map.flyToBounds([[room.lat, room.lon], ...res.people.map((p) => [p.lat, p.lon])], { padding: [40, 40], maxZoom: 15, duration: 0.6 });
+  const arrive = new Date(state.arrive);
+  await Promise.all(res.people.map(async (p, pi) => {
+    const key = `${room.id}|${pi}`;
+    if (!routeCache.has(key)) {
+      try { routeCache.set(key, await api.routeShape(p, room, arrive)); } catch { return; }
+    }
+    if (token !== routeToken) return; // another room was clicked meanwhile
+    const color = personColor(state.people.findIndex((q) => q.id === p.id));
+    for (const seg of routeCache.get(key)) {
+      L.polyline(seg.points, { color: '#000', weight: 8, opacity: 0.35, interactive: false }).addTo(routeLayer);
+      L.polyline(seg.points, { color, weight: 5, opacity: 0.95, dashArray: seg.walk ? '1 9' : null, lineCap: 'round', interactive: false }).addTo(routeLayer);
+    }
+  }));
+}
 
 function focusRoom(room) {
   // Only one room's info at a time.
@@ -415,7 +458,7 @@ function personCard(p, i) {
   const id = `p-${p.id}`;
   return el('div', { class: 'card person' },
     el('div', { class: 'row' },
-      el('span', { class: 'badge', 'aria-hidden': 'true', text: letter(i) }),
+      el('span', { class: 'badge', 'aria-hidden': 'true', style: badgeStyle(i), text: letter(i) }),
       el('input', { class: 'grow', id: `n-${p.id}`, type: 'text', value: p.name, placeholder: t('namePlaceholder'), 'aria-label': t('name'), oninput: (e) => { p.name = e.target.value; } }),
       el('button', { type: 'button', class: 'icon', tabindex: '-1', 'aria-label': t('removePerson'), title: t('removePerson'), text: '×', onclick: () => { state.people.splice(i, 1); invalidate(); render(); } })),
     el('div', { class: 'row combo' },
@@ -475,6 +518,7 @@ async function calculate() {
     }
   });
   state.results = null;
+  clearRoutes();
   state.progress = { done: 0, total: tasks.length, ctrl };
   render();
   await api.runLimited(tasks, 3, () => { state.progress.done++; renderProgress(); });
@@ -513,8 +557,10 @@ function resultsView() {
     res.filtered ? el('p', { class: 'hint', text: t('filteredHint', { n: res.count, all: state.rooms.length }) }) : null,
     res.hasCar ? el('p', { class: 'hint', text: t('carHint') }) : null,
     res.failed ? el('p', { class: 'error', role: 'alert', text: t('someFailed', { n: res.failed }) }) : null,
-    el('ol', { class: 'ranking' }, rows.map((row, i) => el('li', { class: 'card result' + (i === 0 && row.score.complete ? ' best' : '') },
-      el('button', { type: 'button', class: 'result-head', onclick: () => focusRoom(row.room) },
+    el('p', { class: 'hint', text: t('routeHint') }),
+    // The whole card is clickable; the button inside keeps it reachable by keyboard (its click bubbles up).
+    el('ol', { class: 'ranking' }, rows.map((row, i) => el('li', { class: 'card result' + (i === 0 && row.score.complete ? ' best' : '') + (state.selected === row.room.id ? ' selected' : ''), onclick: () => showRoutes(row) },
+      el('button', { type: 'button', class: 'result-head', 'aria-pressed': String(state.selected === row.room.id) },
         el('span', { class: 'rank', text: String(i + 1) }),
         el('span', { class: 'grow' }, el('strong', { text: row.room.name }), el('br'), el('span', { class: 'muted', text: row.room.address || '' }),
           row.room.note ? el('span', { class: 'muted note' }, el('br'), row.room.note) : null)),
@@ -524,7 +570,7 @@ function resultsView() {
       el('ul', { class: 'chips' }, row.minutes.map((m, pi) => {
         const p = res.people[pi];
         return el('li', { class: 'chip' + (m != null && m === row.score.max ? ' longest' : '') },
-          el('span', { class: 'badge small', 'aria-hidden': 'true', text: letter(state.people.findIndex((q) => q.id === p.id)) }),
+          el('span', { class: 'badge small', 'aria-hidden': 'true', style: badgeStyle(state.people.findIndex((q) => q.id === p.id)), text: letter(state.people.findIndex((q) => q.id === p.id)) }),
           el('span', { class: 'sr', text: p.name || '' }),
           ` ${MODE_ICON[p.mode]} ${fmtMin(m)}`,
           m != null && m === row.score.max ? el('span', { class: 'sr', text: ` (${t('longest')})` }) : null);

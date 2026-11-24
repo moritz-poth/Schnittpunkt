@@ -127,7 +127,10 @@ label { display: block; margin: 8px 0 4px; color: var(--muted); }
 .segs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg { border: 0; border-radius: 0; }
 .seg.on { background: var(--sel); font-weight: 700; }
+.result { cursor: pointer; }
+.result:hover { border-color: var(--line); }
 .result.best { border-color: var(--ok); border-width: 2px; }
+.result.selected { border-color: var(--accent); border-width: 2px; background: var(--sel); }
 .result-head { width: 100%; border: 0; padding: 0; text-align: left; align-items: flex-start; gap: 10px; background: transparent; }
 .result-head:hover:not(:disabled) { background: transparent; }
 .result-head strong { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }

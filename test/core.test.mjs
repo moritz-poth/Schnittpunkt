@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid } from '../core.js';
+import { distanceKm, scoreRoom, rankRooms, pickCandidates, parseCoords, parseTime, monthGrid, decodePolyline } from '../core.js';
 
 test('distance Alexanderplatz – Brandenburger Tor is about 2.6 km', () => {
   const d = distanceKm({ lat: 52.5219, lon: 13.4132 }, { lat: 52.5163, lon: 13.3777 });
@@ -82,4 +82,11 @@ test('every own module and the style sheet carry the current stamp (run npm run 
     const text = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
     for (const m of text.matchAll(/from '(\.\/[^']+)'/g)) assert.equal(m[1].split('?v=')[1], v, `${f}: ${m[1]}`);
   }
+});
+
+test('polyline: Google example (precision 5) and a round trip at precision 7', () => {
+  assert.deepEqual(decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@'), [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]);
+  const pts = decodePolyline('quk{h^}ao{~FzfCtsB', 7);
+  assert.equal(pts.length, 2);
+  assert.ok(Math.abs(pts[0][0] - 52.5278) < 0.01 && Math.abs(pts[0][1] - 13.4159) < 0.01, String(pts[0]));
 });

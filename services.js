@@ -1,5 +1,6 @@
 // All network access: geocoding (Photon), street routing (OSRM), public transport (Transitous).
-import { config } from './config.js?v=5f42c49c83';
+import { decodePolyline } from './core.js?v=555c3c134f';
+import { config } from './config.js?v=555c3c134f';
 
 const OSRM = {
   car: 'https://routing.openstreetmap.de/routed-car/table/v1/driving/',
@@ -69,14 +70,33 @@ export async function streetMinutes(person, rooms, signal) {
 }
 
 // Minutes by public transport (or on foot, if faster) arriving by `arriveBy` (Date).
-export async function transitMinutes(person, room, arriveBy, signal) {
+// The fastest public transport journey (or walking, if faster) arriving by `arriveBy`; null if none.
+async function fastestTransit(person, room, arriveBy, signal) {
   const params = new URLSearchParams({
     fromPlace: `${person.lat},${person.lon}`, toPlace: `${room.lat},${room.lon}`,
     time: arriveBy.toISOString(), arriveBy: 'true',
   });
   const data = await getJson(`${TRANSITOUS}?${params}`, { signal });
-  const all = [...(data.itineraries || []), ...(data.direct || [])].map((i) => i.duration / 60);
-  return all.length ? Math.min(...all) : null;
+  const all = [...(data.itineraries || []), ...(data.direct || [])];
+  return all.length ? all.reduce((a, b) => (b.duration < a.duration ? b : a)) : null;
+}
+
+export async function transitMinutes(person, room, arriveBy, signal) {
+  const best = await fastestTransit(person, room, arriveBy, signal);
+  return best ? best.duration / 60 : null;
+}
+
+// The route's line for the map: [{ points: [[lat, lon], …], walk }], one part per leg.
+export async function routeShape(person, room, arriveBy, signal) {
+  if (person.mode === 'transit') {
+    const best = await fastestTransit(person, room, arriveBy, signal);
+    return (best?.legs || []).filter((l) => l.legGeometry)
+      .map((l) => ({ points: decodePolyline(l.legGeometry.points, l.legGeometry.precision), walk: l.mode === 'WALK' }));
+  }
+  const coords = [person, room].map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+  const data = await getJson(`${OSRM[person.mode].replace('/table/', '/route/')}${coords}?overview=full&geometries=geojson`, { signal });
+  if (data.code !== 'Ok') throw new Error(data.code);
+  return [{ points: data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]), walk: person.mode === 'walk' }];
 }
 
 // Runs `tasks` (functions returning promises) with at most `limit` at a time.
